@@ -53,6 +53,11 @@ def main():
     fx_group.add_argument("--no-shake", action="store_true", help="Disable camera shake effects")
     fx_group.add_argument("--no-keywords", action="store_true", help="Disable top keyword popups")
 
+    # Voice Controls
+    voice_group = parser.add_argument_group("Voice Controls")
+    voice_group.add_argument("--voice-name", help="Gemini TTS voice timbre (e.g. Puck, Charon, Kore, Fenrir, Aoede)")
+    voice_group.add_argument("--voice-style", help="Natural language prompt directing the AI voice actor cadence and tone")
+
     args = parser.parse_args()
 
     # Dynamic imports
@@ -74,7 +79,7 @@ def main():
     save_account_marker(str(target_path), account_name)
 
     # Build and persist CLI overrides into project config.json if supplied
-    cli_overrides = {"subtitles": {}, "visual_fx": {}, "editing": {}}
+    cli_overrides = {"subtitles": {}, "visual_fx": {}, "editing": {}, "voice": {}}
     if args.no_subtitles:
         cli_overrides["subtitles"]["enabled"] = False
     if args.sub_pos:
@@ -101,6 +106,11 @@ def main():
 
     if args.no_keywords:
         cli_overrides["editing"]["show_keywords"] = False
+
+    if args.voice_name:
+        cli_overrides["voice"]["name"] = args.voice_name
+    if args.voice_style:
+        cli_overrides["voice"]["style"] = args.voice_style
 
     # Clean empty override dictionaries
     cli_overrides = {k: v for k, v in cli_overrides.items() if v}

@@ -23,20 +23,32 @@ def generate_voice(target_dir: str, voice_name: str = "Puck", style: str = None)
     if not api_key:
         raise ValueError("GEMINI_API_KEY environment variable is not defined.")
 
-    custom_voice = os.environ.get("GEMINI_VOICE")
-    if custom_voice:
-        voice_name = custom_voice
+    # Resolve account voice settings if not explicitly specified
+    from .account_manager import detect_account_name, load_account_config
+    account_name = detect_account_name(str(target_path))
+    acc_cfg = load_account_config(account_name, str(target_path))
+    voice_cfg = acc_cfg.get("voice", {})
 
-    model_name = os.environ.get("GEMINI_TTS_MODEL", "gemini-2.5-flash")
+    if not voice_name:
+        voice_name = voice_cfg.get("name", "Puck")
 
+    env_voice = os.environ.get("GEMINI_VOICE") or os.environ.get("GEMINI_VOICE_FR")
+    if env_voice:
+        voice_name = env_voice
+
+    if not style:
+        style = voice_cfg.get("style") or os.environ.get("GEMINI_VOICE_STYLE")
     if not style:
         style = (
             "A dynamic, engaging narrator voice for short-form video. "
             "Lively rhythm and clear pronunciation, with natural pacing."
         )
 
+    model_name = os.environ.get("GEMINI_TTS_MODEL", "gemini-2.5-flash")
+
     text = script_path.read_text(encoding="utf-8").strip()
-    log_step("VOICE", f"Generating audio with voice '{voice_name}' using model '{model_name}'...")
+    log_step("VOICE", f"Generating audio with voice '{voice_name}' (model: '{model_name}')")
+    log_step("VOICE", f"Acting style prompt: \"{style[:80]}...\"")
 
     payload = {
         "contents": [
