@@ -1,0 +1,31 @@
+{
+  "name": "horror",
+  "subtitles": {
+    "font": "Arial Bold",
+    "size": 72,
+    "active_color": [255, 255, 255],
+    "inactive_color": [255, 255, 255],
+    "stroke_color": [0, 0, 0],
+    "stroke_width": 7,
+    "y_percent": 0.50,
+    "uppercase": true
+  },
+  "editing": {
+    "min_scene_dur": 1.0,
+    "max_scene_dur": 2.5,
+    "keyword_font_size": 140,
+    "show_keywords": false,
+    "sfx_pack": "cinematic"
+  },
+  "voice": {
+    "name": "Charon",
+    "style": "A dark, chilling, extremely slow and suspenseful French narrator for a terrifying horror story. Very low pitch, ominous whispering undertones, tense pauses, creepy and frightening delivery."
+  },
+  "flow": {
+    "prefixes": {
+      "scene": "Still frame from amateur 1990s VHS camcorder footage, heavy analog grain, washed-out colors, slight motion blur, low resolution, poorly lit. Vertical 9:16 format. Absolutely no text or writing anywhere in the image.",
+      "obj": "Still frame from amateur 1990s VHS camcorder footage, heavy analog grain, washed-out colors, slight motion blur, low resolution, poorly lit. Vertical 9:16 format. Absolutely no text or writing anywhere in the image.",
+      "man": "Still frame from amateur 1990s VHS camcorder footage, heavy analog grain, washed-out colors, slight motion blur, low resolution, poorly lit. Vertical 9:16 format. Absolutely no text or writing anywhere in the image."
+    }
+  }
+}

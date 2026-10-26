@@ -1,0 +1,43 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Environments
+.env
+.env.local
+.venv/
+env/
+venv/
+ENV/
+
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# Chrome debug profile and session cache
+flow/profile/
+profile/
+debug/
+upload_tmp/
+
+# Temporary and render output media
+*.mp4
+*.wav
+*.mp3.tmp
+temp_*
+
+# Generated video project data (except demo)
+videos/*
+!videos/demo/
+!videos/demo/**
+
+# Node/NPM (if applicable)
+node_modules/
+npm-debug.log*
+
+# Playwright
+.playwright/

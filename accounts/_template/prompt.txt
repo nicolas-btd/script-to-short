@@ -1,0 +1,54 @@
+Tu es le réalisateur en chef d'une chaîne TikTok virale.
+Voici le script narratif complet lu par la voix :
+"""
+{script_text}
+"""
+
+Et voici la durée totale de la voix : {total_voice_dur:.2f} secondes.
+
+RÈGLES DE DÉCOUPAGE :
+1. Découpe ce script en plans visuels dynamiques (durée moyenne par plan entre {min_scene_dur:.1f}s et {max_scene_dur:.1f}s).
+2. Chaque plan doit avoir :
+   - "id": entier séquentiel 1, 2, 3...
+   - "anchor": les 3 à 6 premiers mots EXACTS de la phrase prononcée pour caler Whisper.
+   - "keyword": mot-clé percutant en MAJUSCULES (sur ~30% des plans clés), ou null.
+   - "sfx": "pop", "whoosh", "tic", ou null.
+   - "fx": liste d'effets visuels (ex: ["shake"]), ou [].
+   - "refs": [],
+   - "s": "scene",
+   - "scene": description visuelle en ANGLAIS pour Google Flow / ImageFX.
+     * Style : Cinematic, high quality visual composition.
+     * AUCUN TEXTE dans l'image ("Absolutely no text or writing anywhere in the image").
+3. Couverture TikTok ("cover") :
+   - "title_line1": Titre ligne 1 en MAJUSCULES
+   - "title_line2": Titre ligne 2 en MAJUSCULES
+   - "bg_color": Description de fond
+   - "stickman_action": Sujet visuel principal en bas
+
+Réponds EXCLUSIVEMENT en JSON valide :
+{{
+  "timeline_raw": [
+    {{
+      "id": 1,
+      "anchor": "...",
+      "keyword": null,
+      "sfx": null,
+      "fx": []
+    }}
+  ],
+  "prompts": [
+    {{
+      "id": 1,
+      "refs": [],
+      "s": "scene",
+      "anchor": "...",
+      "scene": "..."
+    }}
+  ],
+  "cover": {{
+    "title_line1": "...",
+    "title_line2": "...",
+    "bg_color": "...",
+    "stickman_action": "..."
+  }}
+}}

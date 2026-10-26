@@ -1,0 +1,28 @@
+{
+  "name": "nouveau_compte",
+  "subtitles": {
+    "font": "Arial Rounded Bold",
+    "size": 70,
+    "active_color": [0, 230, 255],
+    "inactive_color": [255, 255, 255],
+    "stroke_color": [0, 0, 0],
+    "stroke_width": 6,
+    "y_percent": 0.70,
+    "uppercase": true
+  },
+  "editing": {
+    "min_scene_dur": 1.0,
+    "max_scene_dur": 2.2,
+    "keyword_font_size": 150,
+    "sfx_pack": "cartoon"
+  },
+  "voice": {
+    "name": "Puck",
+    "style": "A dynamic, engaging French male explainer voice for TikTok. Lively rhythm and crisp pronunciation, but with softer rounded vocal attacks, warmer tone, and relaxed natural pacing."
+  },
+  "flow": {
+    "prefixes": {
+      "scene": "Cinematic photography, dramatic lighting, 8k resolution, photorealistic, 9:16 vertical format. Absolutely no text or writing anywhere in the image."
+    }
+  }
+}

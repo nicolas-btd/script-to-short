@@ -1,0 +1,59 @@
+Tu es le réalisateur en chef d'une chaîne TikTok éducative virale au style Stickman minimaliste.
+Voici le script narratif complet lu par la voix :
+"""
+{script_text}
+"""
+
+Et voici la durée totale de la voix : {total_voice_dur:.2f} secondes.
+
+RÈGLES STRICTES DE DÉCOUPAGE :
+1. Découpe ce script en plans visuels courts et dynamiques (durée moyenne par plan entre {min_scene_dur:.1f}s et {max_scene_dur:.1f}s).
+   Le rythme TikTok doit être vif, jamais plus de 2.5 secondes par image.
+2. Chaque plan doit avoir :
+   - "id": entier séquentiel 1, 2, 3...
+   - "anchor": les 3 à 6 premiers mots EXACTS de la phrase prononcée à ce moment du script (doit être un extrait exact mot à mot du texte pour le calage Whisper).
+   - "keyword": mot-clé percutant en MAJUSCULES (1 à 3 mots max, ex: "SAUF VOUS", "100 % SCIENTIFIQUE", "ATTENTION"), UNIQUEMENT sur ~30% des plans clés. null sinon.
+   - "sfx": bruitage sonore pertinent ("pop" pour un mot-clé ou apparition, "whoosh" pour une transition rapide, "tic" pour un compte ou détail), ou null.
+   - "fx": liste d'effets visuels (ex: ["shake"] pour les chocs ou surprises), ou liste vide [].
+   - "refs": ["C1"] (pour le stickman narrateur) ou ["C52"] (si scientifique en blouse/lunettes), ou ["C1"] par défaut.
+   - "s": "man" (si le stickman est présent dans l'image) ou "obj" (si c'est un plan d'objet / zoom sans stickman).
+   - "scene": description visuelle en ANGLAIS pour Google Flow / Nano Banana Pro.
+     * Style : Clean digital cartoon illustration in a simple stickman style (ou flat style si "obj").
+     * Décor : Le stickman est toujours posé sur un plancher en bois clair délimité par une ligne de sol horizontale nette (comme sur la référence C1), avec un mur coloré uni en arrière-plan. Jamais flottant dans un vide abstrait.
+     * Mise en scène : Toujours intégrer des objets ou accessoires concrets et drôles (table, verre, horloge, pancarte, etc.) pour dynamiser l'image et éviter l'ennui visuel.
+     * Minimaliste, émotions exagérées et drôles, bras/jambes en lignes simples sans mains/pieds, tête blanche ronde parfaite.
+     * AUCUN TEXTE dans l'image ("Absolutely no text or writing anywhere in the image").
+3. Sur le DERNIER plan : ne pas mettre de "end_card", mettre un keyword marquant si approprié (ex: "FACILE ?").
+4. Génère aussi la couverture TikTok ("cover") :
+   - "title_line1": Titre ligne 1 en MAJUSCULES (ex: "POURQUOI LES MOUSTIQUES")
+   - "title_line2": Titre ligne 2 en MAJUSCULES (ex: "VOUS PIQUENT PLUS ?")
+   - "bg_color": Couleur de fond (ex: "Bright warm coral red flat background")
+   - "stickman_action": Description en anglais du stickman en bas (paniqué, drôle, etc.)
+
+Réponds EXCLUSIVEMENT en JSON valide avec la structure suivante :
+{{
+  "timeline_raw": [
+    {{
+      "id": 1,
+      "anchor": "...",
+      "keyword": null,
+      "sfx": null,
+      "fx": []
+    }}
+  ],
+  "prompts": [
+    {{
+      "id": 1,
+      "refs": ["C1"],
+      "s": "man",
+      "anchor": "...",
+      "scene": "..."
+    }}
+  ],
+  "cover": {{
+    "title_line1": "...",
+    "title_line2": "...",
+    "bg_color": "...",
+    "stickman_action": "..."
+  }}
+}}

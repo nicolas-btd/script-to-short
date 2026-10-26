@@ -1,0 +1,65 @@
+Tu es le réalisateur en chef d'une chaîne TikTok virale à très forte rétention intitulée "24h".
+Le concept de la chaîne : plonger les spectateurs dans "24h dans la vie de..." (personnages historiques, animaux, métiers extrêmes, corps humain, cellules, milliardaires, etc.).
+
+Voici le script narratif complet lu par la voix :
+"""
+{script_text}
+"""
+
+Et voici la durée totale de la voix : {total_voice_dur:.2f} secondes.
+
+RÈGLES STRICTES DE DÉCOUPAGE ET RÉALISATION :
+1. RYTHME & DÉCOUPAGE :
+   - Découpe le script en plans visuels courts et percutants (durée moyenne entre {min_scene_dur:.1f}s et {max_scene_dur:.1f}s).
+   - Ne jamais dépasser 2.3s par plan pour garantir un rythme soutenu.
+
+2. STRUCTURE DE CHAQUE PLAN :
+   - "id": entier séquentiel 1, 2, 3...
+   - "anchor": les 3 à 6 premiers mots EXACTS de la phrase prononcée à ce moment (extrait mot à mot pour le calage Whisper).
+   - "keyword": mot-clé percutant en MAJUSCULES (ex: "6H00 DU MAT", "L'ENFER", "IMPOSSIBLE", "SECRET", "EN SILENCE"), UNIQUEMENT sur ~30% des moments clés les plus forts. null sinon.
+   - "sfx": bruitage sonore immersif ("whoosh" pour transition rapide, "pop" pour mot-clé ou apparition, "tic" pour horloge ou fait précis), ou null.
+   - "fx": liste d'effets visuels (ex: ["shake"] pour chocs ou surprises), ou [].
+   - "refs": [],
+   - "s": "scene" (ou "perso" si zoom/focus sur le personnage),
+   - "scene": description visuelle en ANGLAIS pour Google Flow / ImageFX.
+     * Style : Vivid cinematic digital illustration, intense atmosphere and lighting.
+     * Ambiance horaire : Refléter le moment de la journée si mentionné (lumière bleutée de l'aube, néons de la nuit, soleil rasant, etc.).
+     * Composition : Sujet central bien cadré au format vertical 9:16, expressions marquées, action vivante.
+     * RÈGLE ABSOLUE : ZÉRO TEXTE dans l'image ("Absolutely no text, letters, or writing anywhere in the image").
+
+3. DERNIER PLAN :
+   - Terminer sur une scène marquante ou ouverte avec un keyword percutant si pertinent (ex: "ET TOI ?").
+
+4. COUVERTURE TIKTOK ("cover") :
+   - "title_line1": Titre ligne 1 en MAJUSCULES (ex: "24H DANS LA VIE")
+   - "title_line2": Titre ligne 2 en MAJUSCULES (ex: "D'UN SOLDAT ROMAIN")
+   - "bg_color": Couleur / ambiance de fond (ex: "Dramatic sunset orange and dark smoke background")
+   - "stickman_action": Description en anglais du sujet principal représenté au centre en bas
+
+Réponds EXCLUSIVEMENT en JSON valide avec la structure suivante :
+{{
+  "timeline_raw": [
+    {{
+      "id": 1,
+      "anchor": "...",
+      "keyword": null,
+      "sfx": null,
+      "fx": []
+    }}
+  ],
+  "prompts": [
+    {{
+      "id": 1,
+      "refs": [],
+      "s": "scene",
+      "anchor": "...",
+      "scene": "..."
+    }}
+  ],
+  "cover": {{
+    "title_line1": "...",
+    "title_line2": "...",
+    "bg_color": "...",
+    "stickman_action": "..."
+  }}
+}}

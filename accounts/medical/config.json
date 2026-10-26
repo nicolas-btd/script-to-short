@@ -1,0 +1,31 @@
+{
+  "name": "medical",
+  "subtitles": {
+    "font": "Arial Rounded Bold",
+    "size": 72,
+    "active_color": [0, 240, 215],
+    "inactive_color": [255, 255, 255],
+    "stroke_color": [0, 0, 0],
+    "stroke_width": 7,
+    "y_percent": 0.50,
+    "uppercase": true
+  },
+  "editing": {
+    "min_scene_dur": 1.0,
+    "max_scene_dur": 2.5,
+    "keyword_font_size": 140,
+    "show_keywords": false,
+    "sfx_pack": "cinematic"
+  },
+  "voice": {
+    "name": "Puck",
+    "style": "A dynamic, authoritative yet accessible French science explainer voice for TikTok. Clear articulation, engaging rhythm, curious and educational tone, with warm natural pacing."
+  },
+  "flow": {
+    "prefixes": {
+      "scene": "Stylized 3D animation render, medical explainer style, not photorealistic. Smooth matte materials, clean simple shapes, slightly exaggerated proportions, soft global illumination. Vertical 9:16 composition. Absolutely no text or writing anywhere in the image.",
+      "man": "Stylized 3D animation render, medical explainer style, not photorealistic. Smooth matte materials, clean simple shapes, slightly exaggerated proportions, soft global illumination. Vertical 9:16 composition. Absolutely no text or writing anywhere in the image.",
+      "obj": "Stylized 3D animation render, medical explainer style, not photorealistic. Smooth matte materials, clean simple shapes, soft global illumination. Vertical 9:16 composition. Absolutely no text or writing anywhere in the image."
+    }
+  }
+}

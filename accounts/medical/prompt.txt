@@ -1,0 +1,64 @@
+Tu es le réalisateur en chef d'une chaîne TikTok éducative, médicale et scientifique virale intitulée "Santé" / "Ton corps si".
+Le concept : vulgariser ce qui se passe dans le corps humain de façon captivante, visuelle, scientifique et ultra-rythmée (manque de sommeil, privation d'eau, sucre, caféine, organes, hormones, réactions physiologiques).
+
+Voici le script narratif complet lu par la voix :
+"""
+{script_text}
+"""
+
+Et voici la durée totale de la voix : {total_voice_dur:.2f} secondes.
+
+RÈGLES STRICTES DE DÉCOUPAGE ET RÉALISATION :
+1. RYTHME & DÉCOUPAGE :
+   - Découpe le script en plans visuels courts et percutants (durée moyenne entre {min_scene_dur:.1f}s et {max_scene_dur:.1f}s).
+   - Ne jamais dépasser 2.5s par plan pour garantir un rythme soutenu.
+
+2. STRUCTURE DE CHAQUE PLAN :
+   - "id": entier séquentiel 1, 2, 3...
+   - "anchor": les 3 à 6 premiers mots EXACTS de la phrase prononcée à ce moment (extrait mot à mot pour le calage Whisper).
+   - "keyword": mot-clé percutant ou compteur temporel en MAJUSCULES (ex: "24 H", "ADÉNOSINE", "= 1 G D'ALCOOL", "GHRÉLINE", "MICRO-SOMMEILS", "AMYGDALE", "72 H"), UNIQUEMENT sur ~30-40% des moments clés les plus forts. null sinon.
+   - "sfx": bruitage sonore immersif ("whoosh" pour transition rapide, "pop" pour mot-clé ou molécule/apparition, "tic" pour compteur de temps ou fait précis, "alarme" pour danger), ou null.
+   - "fx": liste d'effets visuels (ex: ["shake"] pour chocs, frayeurs ou pertes d'équilibre), ou [].
+   - "refs": liste de références (ex: ["1"] si cohérence du personnage avec la scène 1, ou vide []),
+   - "s": "man" (si le personnage humain est présent) ou "obj" (pour plans d'organes, cerveau, molécules, zoom intérieur du corps) ou "scene".
+   - "scene": description visuelle en ANGLAIS pour Google Flow / ImageFX.
+     * Style : Stylized 3D animation render, medical explainer style, not photorealistic. Smooth matte materials, clean simple shapes, soft global illumination, vertical 9:16 composition.
+     * Corps humain & médecine : coupes anatomiques semi-transparentes type verre dépoli (frosted glass), cerveau ou estomac lumineux, flux de particules colorées (molécules, hormones), éclairage soigné.
+     * RÈGLE ABSOLUE : ZÉRO TEXTE dans l'image ("Absolutely no text or writing anywhere in the image").
+
+3. DERNIER PLAN :
+   - Terminer sur une scène d'appel à l'action ou conclusion avec un keyword marquant (ex: "ET TOI ?", "EN COMMENTAIRE").
+
+4. COUVERTURE TIKTOK ("cover") :
+   - "title_line1": Titre ligne 1 en MAJUSCULES (ex: "TON CORPS APRÈS")
+   - "title_line2": Titre ligne 2 en MAJUSCULES (ex: "3 JOURS SANS DORMIR")
+   - "bg_color": Description de l'ambiance visuelle
+   - "stickman_action": Description en anglais du sujet central ou de l'organe clé en 3D stylized
+
+Réponds EXCLUSIVEMENT en JSON valide avec la structure suivante :
+{{
+  "timeline_raw": [
+    {{
+      "id": 1,
+      "anchor": "...",
+      "keyword": null,
+      "sfx": null,
+      "fx": []
+    }}
+  ],
+  "prompts": [
+    {{
+      "id": 1,
+      "refs": [],
+      "s": "man",
+      "anchor": "...",
+      "scene": "..."
+    }}
+  ],
+  "cover": {{
+    "title_line1": "...",
+    "title_line2": "...",
+    "bg_color": "...",
+    "stickman_action": "..."
+  }}
+}}

@@ -1,0 +1,31 @@
+{
+  "name": "cartoon",
+  "subtitles": {
+    "font": "Arial Rounded Bold",
+    "size": 70,
+    "active_color": [255, 212, 59],
+    "inactive_color": [255, 255, 255],
+    "stroke_color": [0, 0, 0],
+    "stroke_width": 6,
+    "y_percent": 0.70,
+    "uppercase": true
+  },
+  "editing": {
+    "min_scene_dur": 1.0,
+    "max_scene_dur": 2.2,
+    "keyword_font_size": 150,
+    "sfx_pack": "cartoon"
+  },
+  "voice": {
+    "name": "Puck",
+    "style": "A dynamic, engaging French male explainer voice for TikTok. Lively rhythm and crisp pronunciation, but with softer rounded vocal attacks, warmer tone, and relaxed natural pacing."
+  },
+  "flow": {
+    "prefixes": {
+      "man": "Clean digital cartoon illustration in a simple stickman style. The stickman has a large perfectly round white head with a thick black outline, expressive eyes (white circles with black pupils), thin curved eyebrows and a small simple mouth. His body, arms and legs are very thin black lines, with no hands or feet drawn, just line ends. The character stands firmly on a simple light wooden floor at the bottom of the frame, with a clean horizontal ground line separating the wooden floor from the colored wall background, exactly like the floor in the reference image C1. Full-color flat background filling the whole frame, no paper texture. Objects have flat colors with thick black outlines and no shading. Minimalist details, lots of empty space, soft muted colors. Vertical 9:16 format. Absolutely no text or writing anywhere in the image. Same character and style as the reference image. Use the reference image only for the character design and drawing style. Create a completely new composition and background as described.",
+      "brain": "Clean digital cartoon illustration in a simple flat style. Full-color flat background filling the whole frame, no paper texture. Objects have flat colors with thick black outlines and no shading. Minimalist details, lots of empty space, soft muted colors. Vertical 9:16 format. Absolutely no text or writing anywhere in the image. Same pink brain mascot and drawing style as the reference image. Use the reference image only for the character design and drawing style. Create a completely new composition and background as described.",
+      "duo": "Clean digital cartoon illustration in a simple stickman style. The stickman has a large perfectly round white head with a thick black outline, expressive eyes (white circles with black pupils), thin curved eyebrows and a small simple mouth. His body, arms and legs are very thin black lines, with no hands or feet drawn, just line ends. The character stands firmly on a simple light wooden floor at the bottom of the frame, with a clean horizontal ground line separating the wooden floor from the colored wall background, exactly like the floor in the reference image C1. Full-color flat background filling the whole frame, no paper texture. Objects have flat colors with thick black outlines and no shading. Minimalist details, lots of empty space, soft muted colors. Vertical 9:16 format. Absolutely no text or writing anywhere in the image. Same stickman and same pink brain mascot as the reference images, same drawing style. Use the reference images only for the character designs and drawing style. Create a completely new composition and background as described.",
+      "obj": "Clean digital cartoon illustration in a simple flat style. Full-color flat background filling the whole frame, no paper texture. Objects have flat colors with thick black outlines and no shading. Minimalist details, lots of empty space, soft muted colors. Vertical 9:16 format. Absolutely no text or writing anywhere in the image. Same drawing style as the reference image. Use the reference image only for the drawing style. No stickman in this image. Create a completely new composition and background as described."
+    }
+  }
+}

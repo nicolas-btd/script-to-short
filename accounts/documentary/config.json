@@ -1,0 +1,29 @@
+{
+  "name": "documentary",
+  "subtitles": {
+    "font": "Arial Rounded Bold",
+    "size": 72,
+    "active_color": [0, 240, 255],
+    "inactive_color": [255, 255, 255],
+    "stroke_color": [0, 0, 0],
+    "stroke_width": 7,
+    "y_percent": 0.70,
+    "uppercase": true
+  },
+  "editing": {
+    "min_scene_dur": 1.0,
+    "max_scene_dur": 2.1,
+    "keyword_font_size": 150,
+    "sfx_pack": "cinematic"
+  },
+  "voice": {
+    "name": "Puck",
+    "style": "A captivating, fast-paced French storyteller voice for TikTok. Immersive, energetic, engaging documentary tone with clear diction and natural enthusiasm."
+  },
+  "flow": {
+    "prefixes": {
+      "scene": "Vivid cinematic digital illustration, rich lighting and atmosphere, detailed storytelling scene, depth of field, 9:16 vertical format. Absolutely no text, words, or writing anywhere in the image.",
+      "perso": "Expressive cinematic digital character illustration, dramatic lighting, rich details, 9:16 vertical format. Absolutely no text, words, or writing anywhere in the image."
+    }
+  }
+}
