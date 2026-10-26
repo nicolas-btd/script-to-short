@@ -29,14 +29,29 @@ DEFAULT_PREFIXES = {
 }
 
 
-def build_prompts(target_dir: str, custom_prefixes: dict = None) -> str:
+def build_prompts(target_dir: str, custom_prefixes: dict = None, visual_style: str = None) -> str:
     target_path = Path(target_dir).resolve()
     jsonl_path = target_path / "prompts.jsonl"
     json_path = target_path / "prompts.json"
     raw_timeline_path = target_path / "timeline_raw.json"
     scenes_path = target_path / "scenes.json"
 
-    prefixes = dict(DEFAULT_PREFIXES)
+    from core.account_manager import detect_account_name, resolve_visual_style
+    account_name = detect_account_name(str(target_path))
+    if not visual_style:
+        visual_style = resolve_visual_style(str(target_path))
+
+    prefixes = {}
+    if account_name == "cartoon" and not (target_path / "style.txt").is_file():
+        prefixes = dict(DEFAULT_PREFIXES)
+    elif visual_style:
+        clean_style = visual_style.strip().rstrip(".")
+        base_prefix = f"{clean_style}. Vertical 9:16 portrait format. Absolutely no text, letters, numbers, or watermarks anywhere in the image."
+        for st in ["scene", "man", "obj", "character", "subject", "perso"]:
+            prefixes[st] = base_prefix
+    else:
+        prefixes = dict(DEFAULT_PREFIXES)
+
     if custom_prefixes:
         prefixes.update(custom_prefixes)
 

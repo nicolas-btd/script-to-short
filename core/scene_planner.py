@@ -10,6 +10,7 @@ from .account_manager import (
     get_account_dir,
     load_account_config,
     load_account_prompt_template,
+    resolve_visual_style,
     save_account_marker,
 )
 from .transcribe import transcribe_audio
@@ -46,7 +47,7 @@ def call_gemini_json(prompt: str, api_key: str, model_name: str = "gemini-2.5-fl
         raise RuntimeError(f"Failed to parse Gemini JSON response: {e}")
 
 
-def plan_scenes(target_dir: str, account_name: str = None, force_mode: str = None) -> dict:
+def plan_scenes(target_dir: str, account_name: str = None, force_mode: str = None, visual_style: str = None) -> dict:
     target_path = Path(target_dir).resolve()
     script_path = target_path / "script.txt"
     raw_path = target_path / "timeline_raw.json"
@@ -57,7 +58,16 @@ def plan_scenes(target_dir: str, account_name: str = None, force_mode: str = Non
     save_account_marker(str(target_path), account_name)
     acc_cfg = load_account_config(account_name, str(target_path))
 
+    # Resolve visual style direction
+    resolved_style = resolve_visual_style(str(target_path), explicit_style=visual_style)
+    if visual_style and not (target_path / "style.txt").is_file():
+        try:
+            (target_path / "style.txt").write_text(visual_style.strip() + "\n", encoding="utf-8")
+        except Exception:
+            pass
+
     log_step("PLANNER", f"Active style profile: '{account_name}'")
+    log_step("PLANNER", f"Visual style direction: \"{resolved_style[:90]}...\"")
 
     # Sync reference images if available
     acc_refs = get_account_dir(account_name) / "refs"
@@ -109,7 +119,7 @@ def plan_scenes(target_dir: str, account_name: str = None, force_mode: str = Non
         # Build prompts.json if not already present
         from flow.build_prompts import build_prompts
         prefixes = acc_cfg.get("flow", {}).get("prefixes", {})
-        build_prompts(str(target_path), custom_prefixes=prefixes)
+        build_prompts(str(target_path), custom_prefixes=prefixes, visual_style=resolved_style)
 
         timeline_raw = json.loads(raw_path.read_text(encoding="utf-8"))
         log_step("PLANNER", f"Loaded {len(timeline_raw)} pre-defined scenes without LLM call.")
@@ -138,43 +148,86 @@ def plan_scenes(target_dir: str, account_name: str = None, force_mode: str = Non
 
     prompt_template = load_account_prompt_template(account_name)
     if prompt_template:
-        prompt = prompt_template.format(
-            script_text=script_text,
-            total_voice_dur=total_voice_dur,
-            min_scene_dur=min_dur,
-            max_scene_dur=max_dur
-        )
+        format_kwargs = {
+            "script_text": script_text,
+            "total_voice_dur": total_voice_dur,
+            "min_scene_dur": min_dur,
+            "max_scene_dur": max_dur
+        }
+        if "{visual_style}" in prompt_template:
+            format_kwargs["visual_style"] = resolved_style
+        try:
+            prompt = prompt_template.format(**format_kwargs)
+        except Exception:
+            prompt = prompt_template.replace("{script_text}", script_text)
     else:
-        prompt = f"""You are the creative director of a viral educational short-form channel.
+        prompt = f"""You are the creative director of a viral short-form video channel (TikTok, YouTube Shorts, Reels).
+Analyze this narration script and plan a fast-paced, high-retention visual storyboard.
+
 Full narration script:
 \"\"\"
 {script_text}
 \"\"\"
+
 Total voice duration: {total_voice_dur:.2f} seconds.
 
-RULES:
-1. Split this script into rapid, rhythmic visual scenes (average duration between {min_dur:.1f}s and {max_dur:.1f}s).
-   Keep the pace dynamic, never exceed 2.5 seconds per scene.
-2. Each scene object must contain:
-   - "id": sequential integer starting at 1
-   - "anchor": the exact 3 to 6 words spoken at the beginning of this scene (must match word-for-word in script)
-   - "keyword": strong keyword in UPPERCASE (1 to 3 words max), only on ~30% of key scenes, null otherwise
-   - "sfx": relevant sound effect ("pop", "whoosh", "tic"), or null
-   - "fx": list of visual effects (e.g. ["shake"]), or []
-   - "refs": ["C1"] or ["C1", "C52"]
-   - "s": "man" or "obj" or "scene"
-   - "scene": visual scene description in English for image generation. Minimalist, no text inside the image.
-3. Also provide "cover" metadata:
-   - "title_line1": Title line 1 in UPPERCASE
-   - "title_line2": Title line 2 in UPPERCASE
-   - "bg_color": Background color description
-   - "stickman_action": Character action description in English
+TARGET ARTISTIC VISUAL STYLE AND ART DIRECTION:
+\"\"\"
+{resolved_style}
+\"\"\"
 
-Respond strictly with valid JSON containing:
+STRICT PRODUCTION RULES:
+1. SCENE PACING AND CUTS:
+   - Split this script into rapid, rhythmic visual scenes (average cut duration between {min_dur:.1f}s and {max_dur:.1f}s).
+   - Keep the rhythm engaging: cut on strong nouns, verbs, or concept changes. Never exceed 2.3 seconds per scene.
+   - Total scenes must properly cover the entire narration from 0.0s to {total_voice_dur:.2f}s.
+
+2. SCENE DATA OBJECTS:
+   Each cut in "timeline_raw" and "prompts" must have:
+   - "id": sequential integer starting at 1
+   - "anchor": the exact 3 to 6 words spoken at the beginning of this cut (must match word-for-word with the script for Whisper alignment)
+   - "keyword": strong high-impact keyword in UPPERCASE (1 to 2 words max) for retention on ~30% of key moments, null otherwise
+   - "sfx": punchy sound effect ("whoosh", "pop", "tic"), or null
+   - "fx": list of visual effects (e.g. ["shake"] for dramatic moments, surprises, or impacts), or []
+   - "refs": reference image tags if relevant (e.g. ["C1"]), or []
+   - "s": "scene" or "character" or "object"
+   - "scene": detailed visual description in English for image generation.
+     CRITICAL: Strictly adhere to the TARGET ARTISTIC VISUAL STYLE specified above.
+     Describe character actions, camera framing (vertical 9:16), foreground/background elements, lighting, and mood.
+     RULE: Absolutely NO text, words, letters, subtitles, or watermarks inside the generated image.
+
+3. COVER METADATA:
+   - "title_line1": Catchy title line 1 in UPPERCASE
+   - "title_line2": Catchy title line 2 in UPPERCASE
+   - "bg_color": Atmospheric background color or lighting description
+   - "cover_subject_action": Central character or subject visual action description in English in the chosen style
+
+Respond strictly with valid JSON with this exact structure:
 {{
-  "timeline_raw": [...],
-  "prompts": [...],
-  "cover": {{...}}
+  "timeline_raw": [
+    {{
+      "id": 1,
+      "anchor": "...",
+      "keyword": null,
+      "sfx": null,
+      "fx": []
+    }}
+  ],
+  "prompts": [
+    {{
+      "id": 1,
+      "refs": [],
+      "s": "scene",
+      "anchor": "...",
+      "scene": "..."
+    }}
+  ],
+  "cover": {{
+    "title_line1": "...",
+    "title_line2": "...",
+    "bg_color": "...",
+    "cover_subject_action": "..."
+  }}
 }}
 """
 
@@ -194,21 +247,22 @@ Respond strictly with valid JSON containing:
 
     from flow.build_prompts import build_prompts
     prefixes = acc_cfg.get("flow", {}).get("prefixes", {})
-    build_prompts(str(target_path), custom_prefixes=prefixes)
+    build_prompts(str(target_path), custom_prefixes=prefixes, visual_style=resolved_style)
 
     # Save cover.txt
     cover_path = target_path / "cover.txt"
+    cover_action = cover_data.get("cover_subject_action") or cover_data.get("stickman_action", "")
     cover_text = (
         f"TITLE 1: {cover_data.get('title_line1', '')}\n"
         f"TITLE 2: {cover_data.get('title_line2', '')}\n"
         f"BG COLOR: {cover_data.get('bg_color', '')}\n"
-        f"ACTION: {cover_data.get('stickman_action', '')}\n"
+        f"ACTION: {cover_action}\n"
     )
     cover_path.write_text(cover_text, encoding="utf-8")
 
     # Save prompts.txt
     txt_path = target_path / "prompts.txt"
-    lines = [f"# Scene Prompts - {target_path.name}\n"]
+    lines = [f"# Scene Prompts - {target_path.name}\n", f"# Visual Style: {resolved_style}\n"]
     for p in prompts_list:
         lines.append(f"### Scene {p.get('id')} - \"{p.get('anchor', '')}\"")
         lines.append(f"Refs: {', '.join(p.get('refs', []))} | Type: {p.get('s', 'scene')}")

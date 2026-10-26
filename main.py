@@ -58,6 +58,15 @@ def main():
     voice_group.add_argument("--voice-name", help="Gemini TTS voice timbre (e.g. Puck, Charon, Kore, Fenrir, Aoede)")
     voice_group.add_argument("--voice-style", help="Natural language prompt directing the AI voice actor cadence and tone")
 
+    # Visual Style Direction
+    style_group = parser.add_argument_group("Visual Style Direction")
+    style_group.add_argument(
+        "--style",
+        "--visual-style",
+        dest="visual_style",
+        help="Target visual style / art direction prompt (e.g. 'Dark cinematic documentary, 8k', 'Clean 2D stickman cartoon')"
+    )
+
     args = parser.parse_args()
 
     # Dynamic imports
@@ -112,6 +121,9 @@ def main():
     if args.voice_style:
         cli_overrides["voice"]["style"] = args.voice_style
 
+    if args.visual_style:
+        cli_overrides["visual_style"] = args.visual_style
+
     # Clean empty override dictionaries
     cli_overrides = {k: v for k, v in cli_overrides.items() if v}
 
@@ -124,9 +136,12 @@ def main():
             except Exception:
                 pass
         for section, vals in cli_overrides.items():
-            if section not in existing_cfg or not isinstance(existing_cfg[section], dict):
-                existing_cfg[section] = {}
-            existing_cfg[section].update(vals)
+            if isinstance(vals, dict):
+                if section not in existing_cfg or not isinstance(existing_cfg[section], dict):
+                    existing_cfg[section] = {}
+                existing_cfg[section].update(vals)
+            else:
+                existing_cfg[section] = vals
         cfg_file.write_text(json.dumps(existing_cfg, indent=2, ensure_ascii=False), encoding="utf-8")
         log_step("CONFIG", f"Updated project overrides in {cfg_file.name}")
 
@@ -157,7 +172,7 @@ def main():
     print("\n--------------------------------------------------------------")
     print("[STEP 1/3] Scene Planning & Audio Preparation")
     print("--------------------------------------------------------------")
-    plan_scenes(str(target_path), account_name, force_mode=args.mode)
+    plan_scenes(str(target_path), account_name, force_mode=args.mode, visual_style=args.visual_style)
 
     # Step 2: Google Flow Image Generation via Chrome CDP
     if not args.skip_flow:

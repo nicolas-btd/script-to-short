@@ -25,6 +25,7 @@ The system handles voice synthesis, word-by-word subtitle synchronization, AI sc
 - [Configuration & Customization](#configuration--customization)
   - [Configuration Precedence](#configuration-precedence)
   - [Full Configuration Schema](#full-configuration-schema)
+  - [Visual Style & Art Direction](#visual-style--art-direction)
   - [Subtitle Customization](#subtitle-customization)
   - [Visual Effects & Camera Motion](#visual-effects--camera-motion)
   - [Editing & Graphic Elements](#editing--graphic-elements)
@@ -64,12 +65,22 @@ Producing high-retention short-form videos requires orchestrating voice synthesi
 
 `script-to-short` supports two distinct operating modes:
 
-### Mode 1: Script Input (Auto Mode with Gemini 2.5 Flash)
-- **Input:** `videos/project/script.txt`
-- **Behavior:** Gemini 2.5 Flash analyzes your script, generates scene cuts (1-2s pacing), detects key moments for sound effects (`sfx`), selects animated uppercase keywords, and writes visual prompts for Google Flow.
+### Mode 1: Script & Visual Style Input (Auto Mode with Gemini 2.5 Flash)
+- **Input:**
+  - `videos/project/script.txt` (narration text spoken by the voice actor)
+  - `videos/project/style.txt` (artistic visual direction prompt, or passed via `--style "..."`)
+- **Behavior:** Narration text alone is insufficient for high-quality automated visuals because the AI needs a defined aesthetic universe (e.g. 2D stickman cartoon, 3D Pixar render, dark documentary oil painting, retro anime). Gemini 2.5 Flash analyzes your script in combination with your visual style prompt:
+  1. Breaks the narration into rapid 1-2 second cuts (pacing suited for short-form retention).
+  2. Generates scene visual descriptions conditioned strictly on your target aesthetic (character, composition, vertical 9:16 framing, lighting).
+  3. Detects key moments for sound effects (`sfx`), uppercase keywords, and camera shakes.
+  4. Formats final prompts for Google Flow with style consistency.
 - **Usage:**
 ```bash
-python main.py videos/my_project --mode auto
+# Using a local style.txt file in the video folder:
+python main.py videos/my_project
+
+# Or passing a custom visual style prompt directly via CLI:
+python main.py videos/my_project --style "Dark cinematic history painting, dramatic Caravaggio lighting, 8k, vertical 9:16"
 ```
 
 ### Mode 2: Timeline Input (Manual Mode with Zero LLM Call)
@@ -271,6 +282,10 @@ Voice Controls:
                         Gemini TTS base voice timbre (e.g. Puck, Charon, Kore, Fenrir, Aoede)
   --voice-style VOICE_STYLE
                         Natural language prompt directing AI vocal delivery, cadence, and tone
+
+Visual Style Direction:
+  --style STYLE, --visual-style STYLE
+                        Target visual style / art direction prompt (e.g. 'Dark cinematic documentary, 8k', 'Clean 2D stickman cartoon')
 ```
 
 ---
@@ -344,6 +359,63 @@ Below is the complete reference schema for `config.json`:
     "prefixes": {}
   }
 }
+```
+
+---
+
+### Visual Style & Art Direction (`style.txt` / `--style`)
+
+Automated visual generation requires a clear art direction prompt to maintain visual coherence across all generated scenes. Without an artistic style prompt, generated scenes would vary wildly in style, medium, and lighting.
+
+#### Visual Style Resolution Hierarchy
+
+The engine resolves the targeted artistic style in this order of precedence:
+
+1. **CLI Flag (`--style "..."` or `--visual-style "..."`):** Takes immediate priority for the current run and is saved to `videos/<project>/style.txt`.
+2. **Project Style File (`videos/<project>/style.txt`):** The recommended per-project method. Place your aesthetic prompt in this file alongside `script.txt`.
+3. **Project Config (`videos/<project>/config.json`):** Key `"visual_style"`.
+4. **Account Profile Style (`accounts/<account>/style.txt`):** Channel-wide default style (e.g. stickman for `cartoon`, cinematic painting for `documentary`).
+5. **Account Config (`accounts/<account>/config.json`):** Keys `"visual_style"` or `"flow.prefixes.scene"`.
+6. **Engine Default Fallback:** Clean, high quality vertical 9:16 digital illustration.
+
+#### How the Style Prompt Directs the Pipeline
+
+1. **Scene Planning (Gemini 2.5 Flash):** The visual style prompt is injected directly into Gemini's creative director system prompt. Instead of generic descriptions, Gemini writes scene descriptions strictly tailored to your aesthetic (character designs, lighting mood, color palettes, and vertical 9:16 composition).
+2. **Google Flow Generation (`flow/build_prompts.py`):** The style prompt is prepended to each cut's prompt sent to Google Flow, ensuring that the image generation model adheres to your visual identity across every cut.
+3. **Cover Generation:** The cover subject and background are planned to match the visual style.
+
+#### Tested Visual Style Presets
+
+Here are production-tested visual style prompts you can use directly or adapt:
+
+**1. 2D Minimalist Stickman Cartoon (Default for `cartoon`):**
+```
+Clean digital cartoon illustration in a simple stickman style. The stickman has a large perfectly round white head with a thick black outline, expressive eyes (white circles with black pupils), thin curved eyebrows and a small simple mouth. His body, arms and legs are very thin black lines, with no hands or feet drawn. Flat color background filling the whole frame, no paper texture. Objects have flat colors with thick black outlines and no shading. Vertical 9:16 format. Absolutely no text or writing anywhere in the image.
+```
+
+**2. Cinematic History & Storytelling Documentary (`documentary`):**
+```
+Vivid cinematic digital illustration, rich atmospheric chiaroscuro lighting, detailed historical storytelling scene, dramatic depth of field, vertical 9:16 format. Absolutely no text, words, or writing anywhere in the image.
+```
+
+**3. Stylized 3D Medical & Science Explainer (`medical`):**
+```
+Stylized 3D animation render, clean medical and biology explainer aesthetic, smooth matte materials, simple organic shapes, soft global illumination, vertical 9:16 composition. Absolutely no text or writing anywhere in the image.
+```
+
+**4. Analog Found Footage / Retro Horror (`horror`):**
+```
+Dark atmospheric retro footage style, heavy analog grain, washed-out eerie colors, low-key lighting, shadowy suspenseful composition, vertical 9:16 format. Absolutely no text or writing anywhere in the image.
+```
+
+**5. Cyberpunk Anime / Manga:**
+```
+Modern cyberpunk anime digital illustration, vibrant neon lighting, high contrast, wet reflective pavement, detailed character design, Studio Trigger inspired dynamic framing, vertical 9:16 portrait composition. Absolutely no text or writing anywhere in the image.
+```
+
+**6. Vintage Mid-Century Comic Book:**
+```
+Vintage 1960s pop art comic book illustration, visible halftone Ben-Day dots, bold black ink line art, vibrant primary colors, retro paper texture, vertical 9:16 format. Absolutely no text, letters, or speech bubbles anywhere in the image.
 ```
 
 ---
@@ -700,6 +772,7 @@ script-to-short/
 `-- videos/
     `-- demo/                 # Out-of-the-box working test project
         |-- script.txt
+        |-- style.txt
         `-- account.txt
 ```
 

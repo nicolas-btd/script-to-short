@@ -182,6 +182,71 @@ def load_account_prompt_template(account_name: str) -> str:
     return ""
 
 
+def resolve_visual_style(target_dir: str = None, explicit_style: str = None) -> str:
+    """
+    Resolves the targeted artistic visual style prompt in order of precedence:
+    1. Explicit CLI argument (--style / --visual-style)
+    2. Project style file: style.txt, visual_style.txt, or prompt_style.txt
+    3. Project config.json: "visual_style" or "style"
+    4. Account style file: accounts/<account>/style.txt
+    5. Account config.json: "visual_style" or "flow.prefixes.scene"
+    6. Built-in neutral vertical 9:16 fallback
+    """
+    if explicit_style and str(explicit_style).strip():
+        return str(explicit_style).strip()
+
+    target_path = Path(target_dir).resolve() if target_dir else None
+    if target_path and target_path.is_dir():
+        for cand_name in ["style.txt", "visual_style.txt", "style_prompt.txt", "prompt_style.txt"]:
+            cand = target_path / cand_name
+            if cand.is_file():
+                try:
+                    txt = cand.read_text(encoding="utf-8").strip()
+                    if txt:
+                        return txt
+                except Exception:
+                    pass
+
+        vid_cfg = target_path / "config.json"
+        if vid_cfg.is_file():
+            try:
+                cfg_data = json.loads(vid_cfg.read_text(encoding="utf-8"))
+                st = cfg_data.get("visual_style") or cfg_data.get("style")
+                if st and isinstance(st, str) and st.strip():
+                    return st.strip()
+            except Exception:
+                pass
+
+    account_name = detect_account_name(str(target_path)) if target_path else DEFAULT_ACCOUNT
+    acc_dir = get_account_dir(account_name)
+    if acc_dir.is_dir():
+        for cand_name in ["style.txt", "visual_style.txt"]:
+            cand = acc_dir / cand_name
+            if cand.is_file():
+                try:
+                    txt = cand.read_text(encoding="utf-8").strip()
+                    if txt:
+                        return txt
+                except Exception:
+                    pass
+
+        acc_cfg = load_account_config(account_name)
+        acc_st = acc_cfg.get("visual_style")
+        if acc_st and isinstance(acc_st, str) and acc_st.strip():
+            return acc_st.strip()
+        prefixes = acc_cfg.get("flow", {}).get("prefixes", {})
+        if "scene" in prefixes and prefixes["scene"]:
+            return prefixes["scene"]
+        elif "man" in prefixes and prefixes["man"]:
+            return prefixes["man"]
+
+    return (
+        "Clean, high quality digital illustration in vertical 9:16 portrait format. "
+        "Vivid atmospheric lighting, expressive composition, cinematic depth of field. "
+        "Absolutely no text, letters, words, numbers, or watermarks anywhere in the image."
+    )
+
+
 def save_account_marker(target_dir: str, account_name: str):
     target_path = Path(target_dir).resolve()
     marker_file = target_path / "account.txt"
