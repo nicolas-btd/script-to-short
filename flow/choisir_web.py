@@ -367,17 +367,29 @@ def start_server(video_dir: str):
     global VIDEO_DIR
     VIDEO_DIR = str(Path(video_dir).resolve())
 
-    url = f"http://localhost:{PORT}/"
+    class ReusableServer(HTTPServer):
+        allow_reuse_address = True
+
+    server = None
+    actual_port = PORT
+    for p in range(PORT, PORT + 20):
+        try:
+            server = ReusableServer(("127.0.0.1", p), WebHandler)
+            actual_port = p
+            break
+        except OSError:
+            continue
+
+    if not server:
+        raise OSError(f"Could not bind web interface to any port between {PORT} and {PORT + 20}")
+
+    url = f"http://localhost:{actual_port}/"
     log_step("SERVER", f"Candidate images directory: {get_out_dir()}")
     log_step("SERVER", f"Target video directory: {VIDEO_DIR}")
     log_step("SERVER", f"Web interface running at {url}")
 
     threading.Timer(1.0, lambda: webbrowser.open(url)).start()
 
-    class ReusableServer(HTTPServer):
-        allow_reuse_address = True
-
-    server = ReusableServer(("127.0.0.1", PORT), WebHandler)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

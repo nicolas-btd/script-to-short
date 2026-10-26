@@ -44,7 +44,7 @@ def generate_voice(target_dir: str, voice_name: str = "Puck", style: str = None)
             "Lively rhythm and clear pronunciation, with natural pacing."
         )
 
-    model_name = os.environ.get("GEMINI_TTS_MODEL", "gemini-2.5-flash")
+    model_name = os.environ.get("GEMINI_TTS_MODEL", "gemini-3.8-flash-tts")
 
     text = script_path.read_text(encoding="utf-8").strip()
     log_step("VOICE", f"Generating audio with voice '{voice_name}' (model: '{model_name}')")
