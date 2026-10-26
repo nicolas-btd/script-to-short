@@ -10,8 +10,17 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-from .account_manager import detect_account_name, load_account_config, resolve_font_path
-from .utils import log_step
+cur_dir = Path(__file__).resolve().parent
+project_root = cur_dir.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+try:
+    from .account_manager import detect_account_name, load_account_config, resolve_font_path
+    from .utils import log_step
+except ImportError:
+    from core.account_manager import detect_account_name, load_account_config, resolve_font_path
+    from core.utils import log_step
 
 
 def clean_word(w: str) -> str:

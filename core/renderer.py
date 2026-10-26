@@ -10,13 +10,27 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from scipy.io import wavfile
 
-from .account_manager import (
-    detect_account_name,
-    load_account_config,
-    parse_color,
-    resolve_font_path,
-)
-from .utils import get_project_root, log_step
+cur_dir = Path(__file__).resolve().parent
+project_root = cur_dir.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+try:
+    from .account_manager import (
+        detect_account_name,
+        load_account_config,
+        parse_color,
+        resolve_font_path,
+    )
+    from .utils import get_project_root, log_step
+except ImportError:
+    from core.account_manager import (
+        detect_account_name,
+        load_account_config,
+        parse_color,
+        resolve_font_path,
+    )
+    from core.utils import get_project_root, log_step
 
 
 def mix_audio(target_dir: str, timeline_data: dict, output_audio_path: str):

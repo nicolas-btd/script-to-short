@@ -1,403 +1,480 @@
-import html
-import json
-import os
-import shutil
-import subprocess
-import sys
-import threading
-import webbrowser
+import json, os, sys, shutil, html, webbrowser, threading, subprocess
 from http.server import HTTPServer, SimpleHTTPRequestHandler
-from pathlib import Path
-
-from core.timeline import build_timeline
-from core.renderer import render_video
-from core.utils import get_project_root, log_step
 
 PORT = 8765
-SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_DIR = SCRIPT_DIR.parent
 
-VIDEO_DIR = None
-IMAGES_PER_PROMPT = 3
+# Détermination des chemins
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
+PIPELINE_DIR = os.path.join(PROJECT_DIR, "pipeline")
+CORE_DIR = os.path.join(PROJECT_DIR, "core")
 
+def get_render_scripts():
+    timeline_s = os.path.join(CORE_DIR, "timeline.py") if os.path.exists(os.path.join(CORE_DIR, "timeline.py")) else os.path.join(PIPELINE_DIR, "build_timeline.py")
+    render_s = os.path.join(CORE_DIR, "renderer.py") if os.path.exists(os.path.join(CORE_DIR, "renderer.py")) else os.path.join(PIPELINE_DIR, "render_video.py")
+    return timeline_s, render_s
+
+cfg_path = os.path.join(SCRIPT_DIR, "config.json")
+cfg = json.load(open(cfg_path)) if os.path.exists(cfg_path) else {}
+
+IMAGES_PER_PROMPT = int(cfg.get("images_per_prompt", 3))
+
+# Répertoire vidéo cible (ex: videos/stickman2)
+VIDEO_DIR = cfg.get("video_dir", "")
+if VIDEO_DIR and not os.path.isabs(VIDEO_DIR):
+    VIDEO_DIR = os.path.normpath(os.path.join(SCRIPT_DIR, VIDEO_DIR))
+
+def get_out_dir():
+    out_cfg = cfg.get("out_dir", "")
+    if out_cfg and os.path.isabs(out_cfg):
+        return out_cfg
+    if VIDEO_DIR:
+        if out_cfg and not out_cfg.startswith("images_"):
+            return os.path.join(VIDEO_DIR, out_cfg)
+        return os.path.join(VIDEO_DIR, "images_candidates")
+    return os.path.join(SCRIPT_DIR, out_cfg or "images_candidates")
+
+# État global du rendu vidéo en arrière-plan
 render_state = {
-    "status": "idle",
+    "status": "idle",   # idle, running, done, error
     "log": "",
     "done": False,
     "file": ""
 }
 
-HTML_TEMPLATE = """<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Scene Selection and Video Render</title>
+TEMPLATE = """<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Choix des images · Montage Vidéo</title>
 <style>
-body { background: #121214; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; }
-header { position: sticky; top: 0; z-index: 99; background: #0c0c0e; padding: 14px 24px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #27272a; }
-header h1 { font-size: 17px; margin: 0; font-weight: 600; color: #fff; }
-#stat { font-size: 13px; color: #a1a1aa; background: #27272a; padding: 4px 10px; border-radius: 12px; }
-button { font-size: 14px; padding: 8px 16px; border-radius: 6px; border: 0; cursor: pointer; font-weight: 500; transition: background 0.15s; }
-#go { background: #10b981; color: #022c22; font-weight: 600; }
-#go:hover { background: #059669; }
-#open_vid { display: none; background: #6366f1; color: #fff; font-weight: 600; }
-#open_vid:hover { background: #4f46e5; }
-#render_box { display: none; width: 100%; background: #18181b; border: 1px solid #3f3f46; border-radius: 6px; padding: 10px; margin-top: 6px; }
-#render_log { font-family: monospace; font-size: 12px; color: #34d399; }
-section { padding: 20px 24px; border-bottom: 1px solid #27272a; }
-h2 { margin: 0 0 12px; font-size: 16px; font-weight: 500; color: #e4e4e7; }
-.pair { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
-.img-wrap { position: relative; display: inline-block; }
-.badge { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.7); color: #fff; font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); pointer-events: none; }
-.img { height: 48vh; max-height: 480px; border-radius: 8px; cursor: pointer; outline: 4px solid transparent; outline-offset: 2px; transition: outline-color 0.15s; display: block; }
-.img:hover { outline-color: #71717a; }
-.img-wrap.chosen .img { outline-color: #10b981; }
-.redo { background: #27272a; color: #f87171; font-size: 13px; padding: 6px 12px; }
-.redo:hover { background: #3f3f46; }
-section.rejected { opacity: 0.45; }
-details { margin-top: 8px; font-size: 13px; color: #a1a1aa; }
-summary { cursor: pointer; }
-</style>
-</head>
-<body>
+body{background:#18181b;color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0}
+header{position:sticky;top:0;z-index:99;background:#09090b;padding:14px 24px;display:flex;gap:18px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #27272a;box-shadow:0 4px 12px rgba(0,0,0,0.5)}
+header b{font-size:18px;color:#fafafa;letter-spacing:-0.5px}
+#stat{font-size:14px;color:#a1a1aa;background:#27272a;padding:4px 10px;border-radius:20px}
+button{font-size:15px;padding:9px 18px;border-radius:8px;border:0;cursor:pointer;font-weight:600;transition:all 0.15s ease}
+#go{background:#22c55e;color:#052e16}
+#go:hover{background:#16a34a}
+#copy{display:none;background:#3b82f6;color:#fff}
+#open_vid{display:none;background:#a855f7;color:#fff}
+#res{width:100%;margin:4px 0 0;white-space:pre-wrap;font-size:14px;color:#4ade80;line-height:1.4;max-height:80px;overflow-y:auto}
+#render_box{display:none;width:100%;background:#18181b;border:1px solid #3f3f46;border-radius:8px;padding:12px;margin-top:6px}
+#render_bar{height:6px;width:0%;background:#a855f7;border-radius:4px;transition:width 0.3s ease;margin-top:6px}
+section{padding:24px;border-bottom:1px solid #27272a}
+h2{margin:0 0 14px;font-size:20px;color:#e4e4e7}
+.pair{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.img-wrap{position:relative;display:inline-block}
+.badge{position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);color:#fff;font-size:13px;font-weight:700;padding:4px 9px;border-radius:6px;pointer-events:none;border:1px solid rgba(255,255,255,0.2);z-index:2;transition:all 0.15s ease}
+.img{height:50vh;max-height:520px;border-radius:12px;cursor:pointer;outline:6px solid transparent;outline-offset:4px;transition:transform 0.15s, outline-color 0.15s;box-shadow:0 6px 16px rgba(0,0,0,0.4);display:block}
+.img:hover{outline-color:#71717a;transform:scale(1.01)}
+.miss{width:28vh;max-width:290px;height:50vh;max-height:520px;display:flex;align-items:center;justify-content:center;background:#27272a;color:#ef4444;border:2px dashed #7f1d1d;cursor:default;text-align:center;font-weight:600;border-radius:12px}
+section[data-choice="1"] .img[data-n="1"],
+section[data-choice="2"] .img[data-n="2"],
+section[data-choice="3"] .img[data-n="3"],
+section[data-choice="4"] .img[data-n="4"]{outline-color:#22c55e;transform:scale(1.01)}
+section[data-choice="1"] .img-wrap:has(.img[data-n="1"]) .badge,
+section[data-choice="2"] .img-wrap:has(.img[data-n="2"]) .badge,
+section[data-choice="3"] .img-wrap:has(.img[data-n="3"]) .badge{background:#22c55e;color:#052e16}
+section[data-choice="x"]{background:#2a1215}
+.redo{background:#27272a;color:#d4d4d8}
+.redo:hover{background:#3f3f46}
+section[data-choice="x"] .redo{background:#ef4444;color:#fff}
+details{margin-top:10px;color:#71717a;font-size:13px;max-width:900px}
+summary{cursor:pointer;color:#a1a1aa}
+</style></head><body>
 <header>
-  <h1>Scene Review</h1>
-  <span id="stat">Loading...</span>
-  <button id="go" onclick="finish()">Confirm and Render Video</button>
-  <button id="open_vid" onclick="openVideo()">Open Final Video</button>
+  <b>Dossier : __OUT__</b>
+  <span id="stat"></span>
+  <span style="font-size:13px;color:#71717a;margin-left:auto">Touches 1, 2, 3 ou clic · X pour refaire</span>
+  <button id="go" onclick="finish()">✅ Valider et lancer le montage</button>
+  <button id="copy">📋 Copier la commande</button>
+  <button id="open_vid" onclick="openVideo()">▶️ Ouvrir la vidéo finale</button>
   <div id="render_box">
-    <div id="render_log">Waiting...</div>
+    <div id="render_text" style="font-size:14px;font-weight:600;color:#c084fc"></div>
+    <div id="render_bar"></div>
   </div>
+  <pre id="res"></pre>
 </header>
-<main id="container">
-  __ROWS__
-</main>
+__ROWS__
 <script>
-let state = {};
-
-function init() {
-  document.querySelectorAll('section').forEach(sec => {
-    const id = sec.id.replace('p', '');
-    const c = sec.getAttribute('data-choice');
-    if (c) state[id] = c;
-    updateUI(id);
-  });
-  updateStat();
+function send(id, v, jump){
+  const s = document.getElementById('p' + id);
+  s.dataset.choice = v;
+  fetch('/choose', {method: 'POST', body: JSON.stringify({id: id, v: v})});
+  count();
+  const n = s.nextElementSibling;
+  if (jump && n && n.tagName === 'SECTION') n.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+function pick(img){ send(img.dataset.id, img.dataset.n, true); }
+function redo(id){
+  const s = document.getElementById('p' + id);
+  send(id, s.dataset.choice === 'x' ? '1' : 'x', false);
+}
+function count(){
+  const all = document.querySelectorAll('section');
+  let x = 0;
+  all.forEach(s => { if (s.dataset.choice === 'x') x++; });
+  document.getElementById('stat').textContent = all.length + ' plans · ' + x + ' à refaire';
 }
 
-function choose(id, v) {
-  state[id] = v;
-  fetch('/choose', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({id, v})
-  });
-  updateUI(id);
-  updateStat();
+let pollTimer = null;
+async function finish(){
+  document.getElementById('go').disabled = true;
+  document.getElementById('go').textContent = '⏳ Traitement...';
+  const r = await fetch('/finish', {method: 'POST'});
+  const d = await r.json();
+  document.getElementById('res').textContent = d.msg;
+  const b = document.getElementById('copy');
+  if (d.cmd) {
+    b.style.display = 'inline-block';
+    b.textContent = '📋 Copier la commande';
+    b.onclick = () => { navigator.clipboard.writeText(d.cmd); b.textContent = 'Copié ✓'; };
+  } else { b.style.display = 'none'; }
+
+  if (d.render_started) {
+    document.getElementById('render_box').style.display = 'block';
+    if (!pollTimer) pollTimer = setInterval(pollRender, 1000);
+  } else {
+    document.getElementById('go').disabled = false;
+    document.getElementById('go').textContent = '✅ Valider et lancer le montage';
+  }
 }
 
-function redo(id) {
-  choose(id, 'x');
+async function pollRender(){
+  try {
+    const r = await fetch('/render_status');
+    const d = await r.json();
+    const box = document.getElementById('render_box');
+    const text = document.getElementById('render_text');
+    const bar = document.getElementById('render_bar');
+    const openBtn = document.getElementById('open_vid');
+
+    if (d.status === 'running') {
+      box.style.display = 'block';
+      text.textContent = '🎬 ' + (d.log || 'Montage en cours...');
+      const match = d.log.match(/\\((\\d+\\.\\d+)%\\)/);
+      if (match) bar.style.width = match[1] + '%';
+    } else if (d.status === 'done') {
+      clearInterval(pollTimer);
+      pollTimer = null;
+      box.style.display = 'block';
+      bar.style.width = '100%';
+      bar.style.background = '#22c55e';
+      text.style.color = '#4ade80';
+      text.textContent = '🎉 ' + d.log;
+      openBtn.style.display = 'inline-block';
+      document.getElementById('go').disabled = false;
+      document.getElementById('go').textContent = '✅ Montage terminé !';
+    } else if (d.status === 'error') {
+      clearInterval(pollTimer);
+      pollTimer = null;
+      text.style.color = '#ef4444';
+      text.textContent = '❌ ' + d.log;
+      document.getElementById('go').disabled = false;
+      document.getElementById('go').textContent = '⚠️ Réessayer';
+    }
+  } catch(e) {}
 }
 
-function updateUI(id) {
-  const sec = document.getElementById('p' + id);
-  if (!sec) return;
-  const c = state[id];
-  sec.classList.toggle('rejected', c === 'x');
-  sec.querySelectorAll('.img-wrap').forEach(w => {
-    const v = w.getAttribute('data-v');
-    w.classList.toggle('chosen', v === c);
-  });
+async function openVideo(){
+  await fetch('/open_video', {method: 'POST'});
 }
 
-function updateStat() {
-  const total = document.querySelectorAll('section').length;
-  const chosen = Object.values(state).filter(x => x && x !== 'x').length;
-  document.getElementById('stat').textContent = chosen + ' / ' + total + ' selected';
-}
+count();
 
-function finish() {
-  const btn = document.getElementById('go');
-  btn.disabled = true;
-  btn.textContent = 'Processing...';
-  document.getElementById('render_box').style.display = 'block';
-
-  fetch('/finish', {method: 'POST'})
-    .then(r => r.json())
-    .then(d => {
-      pollStatus();
-    });
-}
-
-function pollStatus() {
-  const logEl = document.getElementById('render_log');
-  const timer = setInterval(() => {
-    fetch('/render_status')
-      .then(r => r.json())
-      .then(s => {
-        logEl.textContent = s.log || s.status;
-        if (s.done) {
-          clearInterval(timer);
-          document.getElementById('go').style.display = 'none';
-          document.getElementById('open_vid').style.display = 'inline-block';
-        } else if (s.status === 'error') {
-          clearInterval(timer);
-          logEl.style.color = '#f87171';
-        }
-      });
-  }, 1000);
-}
-
-function openVideo() {
-  fetch('/open_video', {method: 'POST'});
-}
-
-window.addEventListener('keydown', e => {
-  if (['1','2','3','4'].includes(e.key)) {
-    const secs = Array.from(document.querySelectorAll('section'));
-    const scrollY = window.scrollY + 120;
-    const cur = secs.find(s => s.offsetTop + s.offsetHeight > scrollY) || secs[0];
-    if (cur) {
-      const id = cur.id.replace('p', '');
-      choose(id, e.key);
+window.addEventListener('keydown', (e) => {
+  if (['1', '2', '3', '4', '&', 'é', '"', "'"].includes(e.key)) {
+    let n = e.key;
+    if (e.key === '&') n = '1';
+    if (e.key === 'é') n = '2';
+    if (e.key === '"') n = '3';
+    if (e.key === "'") n = '4';
+    const sections = Array.from(document.querySelectorAll('section'));
+    const mid = window.innerHeight / 2;
+    const current = sections.find(s => {
+      const r = s.getBoundingClientRect();
+      return r.top <= mid && r.bottom >= mid;
+    }) || sections[0];
+    if (current) {
+      const id = current.id.replace('p', '');
+      send(id, n, true);
     }
   } else if (e.key === 'x' || e.key === 'X') {
-    const secs = Array.from(document.querySelectorAll('section'));
-    const scrollY = window.scrollY + 120;
-    const cur = secs.find(s => s.offsetTop + s.offsetHeight > scrollY) || secs[0];
-    if (cur) redo(cur.id.replace('p', ''));
+    const sections = Array.from(document.querySelectorAll('section'));
+    const mid = window.innerHeight / 2;
+    const current = sections.find(s => {
+      const r = s.getBoundingClientRect();
+      return r.top <= mid && r.bottom >= mid;
+    }) || sections[0];
+    if (current) {
+      const id = current.id.replace('p', '');
+      redo(id);
+    }
   }
 });
+</script></body></html>"""
 
-init();
-</script>
-</body>
-</html>
-"""
+def get_save_path():
+    if VIDEO_DIR and os.path.isdir(VIDEO_DIR):
+        return os.path.join(VIDEO_DIR, "choix_images.json")
+    out_dir = get_out_dir()
+    return os.path.join(out_dir, "choix_images.json")
 
+def load_plans():
+    p_file = (
+        os.path.join(VIDEO_DIR, "prompts.jsonl")
+        if VIDEO_DIR and os.path.exists(os.path.join(VIDEO_DIR, "prompts.jsonl"))
+        else (
+            cfg.get("prompts_file")
+            if cfg.get("prompts_file") and os.path.exists(cfg.get("prompts_file"))
+            else os.path.join(SCRIPT_DIR, "prompts.jsonl")
+        )
+    )
+    if not os.path.exists(p_file):
+        return []
+    plans = (json.loads(l) for l in open(p_file) if l.strip())
+    return sorted(plans, key=lambda p: p.get("id"))
 
-def get_out_dir() -> Path:
+def load_choix():
+    save_path = get_save_path()
+    if os.path.exists(save_path):
+        return json.load(open(save_path))
     if VIDEO_DIR:
-        return Path(VIDEO_DIR) / "images_candidates"
-    return SCRIPT_DIR / "images_candidates"
-
-
-def get_save_path() -> Path:
-    if VIDEO_DIR:
-        return Path(VIDEO_DIR) / "choix_images.json"
-    return SCRIPT_DIR / "choix_images.json"
-
-
-def load_choix() -> dict:
-    p = get_save_path()
-    if p.is_file():
-        try:
-            return json.loads(p.read_text(encoding="utf-8"))
-        except Exception:
-            pass
+        legacy_v = os.path.join(VIDEO_DIR, "choix.json")
+        if os.path.exists(legacy_v):
+            return json.load(open(legacy_v))
     return {}
 
+def default_choice(i):
+    out_dir = get_out_dir()
+    for n in range(1, IMAGES_PER_PROMPT + 1):
+        if os.path.exists(os.path.join(out_dir, f"{i}_{n}.jpg")):
+            return str(n)
+    return "x"
 
-def load_plans() -> list:
-    if VIDEO_DIR:
-        cand = Path(VIDEO_DIR) / "prompts.json"
-        if cand.is_file():
-            try:
-                return json.loads(cand.read_text(encoding="utf-8"))
-            except Exception:
-                pass
-    return []
+def img_tag(i, n):
+    out_dir = get_out_dir()
+    f_name = f"{i}_{n}.jpg"
+    full_path = os.path.join(out_dir, f_name)
+    if not os.path.exists(full_path):
+        return f'<div class="img-wrap"><span class="badge">#{n}</span><div class="img miss">{i}_{n}<br>manquante</div></div>'
+    t = int(os.path.getmtime(full_path))
+    return f'<div class="img-wrap"><span class="badge">#{n}</span><img class="img" src="/candidate_img/{f_name}?t={t}" data-id="{i}" data-n="{n}" title="Option {n} (clic ou touche {n})" onclick="pick(this)"></div>'
 
+def page():
+    choix = load_choix()
+    out_dir = get_out_dir()
+    rows = list()
+    for p in load_plans():
+        i = p.get("id")
+        c = choix.get(str(i)) or default_choice(i)
+        a = html.escape(p.get("anchor", ""))
+        s = html.escape(p.get("scene", ""))
+        existing_n = [n for n in range(1, IMAGES_PER_PROMPT + 1) if os.path.exists(os.path.join(out_dir, f"{i}_{n}.jpg"))]
+        if existing_n:
+            imgs_html = "".join(img_tag(i, n) for n in existing_n)
+        else:
+            imgs_html = f'<div class="img miss">Plan {i}<br>aucune image</div>'
+        rows.append(
+            f'<section id="p{i}" data-choice="{c}"><h2>{i} · « {a} »</h2>'
+            f'<div class="pair">{imgs_html}'
+            f'<button class="redo" onclick="redo({i})">✗ À refaire</button></div>'
+            f'<details><summary>scène</summary>{s}</details></section>'
+        )
+    return TEMPLATE.replace("__ROWS__", "".join(rows)).replace("__OUT__", os.path.basename(out_dir))
 
-def render_worker(video_dir: str):
+def render_worker(video_dir):
     global render_state
     render_state["status"] = "running"
-    render_state["log"] = "Synchronizing timeline..."
+    render_state["log"] = "Calage de la timeline en cours..."
     render_state["done"] = False
 
     try:
-        build_timeline(video_dir)
-        render_state["log"] = "Rendering video frames..."
-        final_mp4 = render_video(video_dir)
-        render_state["status"] = "done"
-        render_state["done"] = True
-        render_state["file"] = final_mp4
-        render_state["log"] = f"Video complete: {Path(final_mp4).name}"
+        t_script, r_script = get_render_scripts()
+        # 1. Timeline
+        cmd1 = [sys.executable, t_script, video_dir]
+        subprocess.run(cmd1, check=True)
+
+        # 2. Rendu vidéo
+        render_state["log"] = "Démarrage du moteur de rendu vidéo..."
+        cmd2 = [sys.executable, r_script, video_dir]
+        proc = subprocess.Popen(cmd2, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+
+        for line in proc.stdout:
+            line_str = line.strip()
+            if "Rendu image" in line_str:
+                render_state["log"] = line_str
+            elif "Audio mixé" in line_str:
+                render_state["log"] = "🔊 Audio et bruitages mixés"
+            elif "Chargement" in line_str:
+                render_state["log"] = line_str
+
+        proc.wait()
+        if proc.returncode == 0:
+            final_mp4 = os.path.join(video_dir, "video_finale.mp4")
+            render_state["status"] = "done"
+            render_state["done"] = True
+            render_state["file"] = final_mp4
+            render_state["log"] = f"Vidéo finale prête : {os.path.basename(final_mp4)}"
+        else:
+            render_state["status"] = "error"
+            render_state["log"] = f"Erreur de rendu vidéo (code {proc.returncode})"
     except Exception as e:
         render_state["status"] = "error"
-        render_state["log"] = f"Render error: {e}"
+        render_state["log"] = f"Erreur : {e}"
 
-
-def finish_selection() -> dict:
+def finish():
     choix = load_choix()
     out_dir = get_out_dir()
-    v_dir = Path(VIDEO_DIR) if VIDEO_DIR else None
+    if VIDEO_DIR:
+        os.makedirs(VIDEO_DIR, exist_ok=True)
+    else:
+        final_dir = os.path.join(SCRIPT_DIR, f"{os.path.basename(out_dir)}_final")
+        os.makedirs(final_dir, exist_ok=True)
 
-    ok = 0
-    refaire = []
+    ok, refaire = 0, list()
     for p in load_plans():
         i = p.get("id")
-        c = choix.get(str(i), "1")
-        src = out_dir / f"{i}_{c}.jpg"
-        if c == "x" or not src.is_file():
+        c = choix.get(str(i)) or default_choice(i)
+        src = os.path.join(out_dir, f"{i}_{c}.jpg")
+        if c == "x" or not os.path.exists(src):
             refaire.append(i)
-            if v_dir:
-                dst = v_dir / f"{i:02d}.jpg"
-                if dst.is_file():
-                    dst.unlink()
+            if VIDEO_DIR:
+                video_dst = os.path.join(VIDEO_DIR, f"{i:02d}.jpg")
+                if os.path.exists(video_dst):
+                    os.remove(video_dst)
             continue
-
-        if v_dir:
-            dst = v_dir / f"{i:02d}.jpg"
-            shutil.copy2(src, dst)
+        if VIDEO_DIR:
+            video_dst = os.path.join(VIDEO_DIR, f"{i:02d}.jpg")
+            shutil.copy2(src, video_dst)
+        else:
+            final_dst = os.path.join(final_dir, f"{i}.jpg")
+            shutil.copy2(src, final_dst)
         ok += 1
 
+    if VIDEO_DIR:
+        msg = f"✅ {ok} images copiées dans {os.path.basename(VIDEO_DIR)}/"
+    else:
+        msg = f"✅ {ok} images copiées dans {os.path.basename(final_dir)}/"
+
+    cmd = ""
     render_started = False
-    if not refaire and v_dir:
-        render_started = True
-        t = threading.Thread(target=render_worker, args=(str(v_dir),), daemon=True)
-        t.start()
+    if refaire:
+        ids = " ".join(str(i) for i in refaire)
+        rm_files = [os.path.join(out_dir, f"{i}_{n}.jpg") for i in refaire for n in range(1, IMAGES_PER_PROMPT + 1)]
+        rm = " ".join(f'"{f}"' for f in rm_files)
+        cmd = f"rm -f {rm} && python flow_fast.py {ids}"
+        msg += f"\n❌ À refaire : {ids}\n{cmd}"
+    else:
+        if VIDEO_DIR:
+            msg += "\n🎬 Lancement automatique du montage de la vidéo finale..."
+            render_started = True
+            t = threading.Thread(target=render_worker, args=(VIDEO_DIR,), daemon=True)
+            t.start()
 
-    return {
-        "ok": ok,
-        "refaire": refaire,
+    return json.dumps({
+        "msg": msg,
+        "cmd": cmd,
         "render_started": render_started
-    }
+    }, ensure_ascii=False)
 
+class H(SimpleHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=SCRIPT_DIR, **kwargs)
 
-def build_page() -> str:
-    plans = load_plans()
-    out_dir = get_out_dir()
-    choix = load_choix()
-    rows = []
-
-    for p in plans:
-        i = p.get("id")
-        anchor = html.escape(p.get("anchor", ""))
-        scene = html.escape(p.get("scene", p.get("raw_scene", "")))
-        selected = choix.get(str(i), "1")
-
-        imgs_html = []
-        for n in range(1, IMAGES_PER_PROMPT + 1):
-            img_file = out_dir / f"{i}_{n}.jpg"
-            if img_file.is_file():
-                imgs_html.append(
-                    f'<div class="img-wrap" data-v="{n}">'
-                    f'<span class="badge">Version {n}</span>'
-                    f'<img class="img" src="/candidate_img/{img_file.name}" onclick="choose({i}, \'{n}\')">'
-                    f'</div>'
-                )
-
-        rows.append(
-            f'<section id="p{i}" data-choice="{selected}">'
-            f'<h2>Scene {i} - "{anchor}"</h2>'
-            f'<div class="pair">{"".join(imgs_html)}'
-            f'<button class="redo" onclick="redo({i})">Reject</button>'
-            f'</div>'
-            f'<details><summary>Prompt details</summary>{scene}</details>'
-            f'</section>'
-        )
-
-    return HTML_TEMPLATE.replace("__ROWS__", "\n".join(rows))
-
-
-class WebHandler(SimpleHTTPRequestHandler):
-    def log_message(self, format, *args):
+    def log_message(self, *a):
         pass
 
-    def reply(self, txt: str, ctype: str):
+    def reply(self, txt, ctype):
         b = txt.encode("utf-8")
         self.send_response(200)
-        self.send_header("Content-Type", f"{ctype}; charset=utf-8")
+        self.send_header("Content-Type", ctype + "; charset=utf-8")
         self.send_header("Content-Length", str(len(b)))
         self.end_headers()
         self.wfile.write(b)
 
     def do_GET(self):
         if self.path in ("/", "/index.html"):
-            return self.reply(build_page(), "text/html")
+            return self.reply(page(), "text/html")
         if self.path == "/render_status":
             return self.reply(json.dumps(render_state, ensure_ascii=False), "application/json")
         if self.path.startswith("/candidate_img/"):
             img_name = self.path.split("/candidate_img/", 1)[1].split("?")[0]
-            img_name = Path(img_name).name
-            img_path = get_out_dir() / img_name
-            if img_path.is_file():
+            img_name = os.path.basename(img_name)
+            img_path = os.path.join(get_out_dir(), img_name)
+            if os.path.exists(img_path):
                 self.send_response(200)
                 self.send_header("Content-Type", "image/jpeg")
-                self.send_header("Content-Length", str(img_path.stat().st_size))
+                self.send_header("Content-Length", str(os.path.getsize(img_path)))
                 self.end_headers()
-                self.wfile.write(img_path.read_bytes())
+                with open(img_path, "rb") as f:
+                    self.wfile.write(f.read())
                 return
-            self.send_error(404, "Image not found")
-            return
+            else:
+                self.send_error(404, "Image introuvable")
+                return
         return super().do_GET()
 
     def do_POST(self):
-        length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(length) if length else b"{}"
-
+        n = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(n) if n else b"{}"
         if self.path == "/choose":
-            data = json.loads(body)
+            d = json.loads(body)
             c = load_choix()
-            c[str(data.get("id"))] = str(data.get("v"))
-            get_save_path().write_text(json.dumps(c, indent=2), encoding="utf-8")
+            c[str(d.get("id"))] = str(d.get("v"))
+            save_path = get_save_path()
+            json.dump(c, open(save_path, "w"), indent=2)
             return self.reply("ok", "text/plain")
-
         if self.path == "/finish":
-            res = finish_selection()
-            return self.reply(json.dumps(res), "application/json")
-
+            return self.reply(finish(), "application/json")
         if self.path == "/open_video":
-            f = render_state.get("file")
-            if f and os.path.exists(f):
-                if sys.platform == "darwin":
-                    subprocess.run(["open", f])
-                elif sys.platform.startswith("linux"):
-                    subprocess.run(["xdg-open", f])
-                elif sys.platform in ("win32", "cygwin"):
-                    os.startfile(f)
+            if render_state.get("file") and os.path.exists(render_state["file"]):
+                subprocess.run(["open", render_state["file"]])
             return self.reply("ok", "text/plain")
-
         self.send_error(404)
 
-
-def start_server(video_dir: str):
+def start_server(video_dir=None):
     global VIDEO_DIR
-    VIDEO_DIR = str(Path(video_dir).resolve())
-
-    class ReusableServer(HTTPServer):
-        allow_reuse_address = True
+    if video_dir:
+        VIDEO_DIR = os.path.abspath(video_dir)
 
     server = None
     actual_port = PORT
-    for p in range(PORT, PORT + 20):
+    for p in range(PORT, PORT + 10):
         try:
-            server = ReusableServer(("127.0.0.1", p), WebHandler)
+            class ReusableServer(HTTPServer):
+                allow_reuse_address = True
+            server = ReusableServer(("127.0.0.1", p), H)
             actual_port = p
             break
         except OSError:
             continue
-
     if not server:
-        raise OSError(f"Could not bind web interface to any port between {PORT} and {PORT + 20}")
+        raise OSError(f"Impossible de lier le serveur web sur les ports {PORT} à {PORT + 10}")
 
     url = f"http://localhost:{actual_port}/"
-    log_step("SERVER", f"Candidate images directory: {get_out_dir()}")
-    log_step("SERVER", f"Target video directory: {VIDEO_DIR}")
-    log_step("SERVER", f"Web interface running at {url}")
+    out_dir = get_out_dir()
+    print("==================================================")
+    print("CHOIX DES IMAGES & MONTAGE VIDEO")
+    print(f"Images candidates : {out_dir}")
+    if VIDEO_DIR:
+        print(f"Video cible : {VIDEO_DIR}")
+    print(f"Sauvegarde : {get_save_path()}")
+    print(f"Interface web : {url}")
+    print("==================================================")
 
-    threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+    def _open():
+        try:
+            if sys.platform == "darwin":
+                subprocess.Popen(["open", url])
+            else:
+                webbrowser.open(url)
+        except Exception:
+            webbrowser.open(url)
 
+    threading.Timer(0.8, _open).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        log_step("SERVER", "Server stopped.")
-
+        print("\nArrete. Choix sauvegardes dans", get_save_path())
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python -m flow.choisir_web <video_dir>")
-        sys.exit(1)
-    start_server(sys.argv[1])
+    candidate = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("-") else None
+    start_server(candidate)

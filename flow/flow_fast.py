@@ -10,7 +10,14 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-from . import flow_auto as fa
+cur_dir = str(Path(__file__).resolve().parent)
+if cur_dir not in sys.path:
+    sys.path.insert(0, cur_dir)
+
+try:
+    from . import flow_auto as fa
+except ImportError:
+    import flow_auto as fa
 
 CFG, S = fa.CFG, fa.S
 MAXP = int(CFG.get("max_parallel", 2))
@@ -168,28 +175,42 @@ def run_generation(target_dir: str = None, only_ids: list = None):
                     iid = img_id(url)
                     if iid in seen:
                         continue
+                    seen.add(iid)
                     best_pid, best_score = None, 0.0
                     for pid, v in flying.items():
                         p_norm = norm(v[0].get("prompt", ""))
+                        raw_norm = norm(v[0].get("raw_scene", "") or v[0].get("scene", ""))
                         for s in ss:
                             s_norm = norm(s)
                             if not s_norm:
                                 continue
-                            if s_norm == p_norm or s_norm in p_norm or p_norm in s_norm:
+                            if s_norm in p_norm or p_norm in s_norm or s_norm in raw_norm or raw_norm in s_norm:
                                 score = 1.0
                             else:
-                                score = difflib.SequenceMatcher(None, p_norm, s_norm).ratio()
+                                s_words = set(s_norm.split())
+                                p_words = set(p_norm.split())
+                                raw_words = set(raw_norm.split())
+                                overlap = max(
+                                    len(s_words & p_words) / max(len(s_words), 1),
+                                    len(s_words & raw_words) / max(len(s_words), 1)
+                                )
+                                seq_ratio = max(
+                                    difflib.SequenceMatcher(None, p_norm, s_norm).ratio(),
+                                    difflib.SequenceMatcher(None, raw_norm, s_norm).ratio()
+                                )
+                                score = max(overlap, seq_ratio)
                             if score > best_score:
                                 best_score = score
                                 best_pid = pid
-                    owner = best_pid if best_score >= 0.75 else None
+                    owner = best_pid if best_score >= 0.40 else None
                     if owner is None:
                         orphans.append(url)
                     else:
                         got.setdefault(owner, []).append(url)
 
-                if orphans and not got and len(flying) == 1:
-                    got[next(iter(flying))] = orphans
+                if orphans and flying:
+                    target_pid = next(iter(flying))
+                    got.setdefault(target_pid, []).extend(orphans)
 
                 for pid, urls in got.items():
                     p, _, t0 = flying.pop(pid)
@@ -249,6 +270,11 @@ def run_generation(target_dir: str = None, only_ids: list = None):
 
 
 if __name__ == "__main__":
-    target = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].isdigit() else None
-    ids = [int(x) for x in sys.argv[1:] if x.isdigit()]
-    run_generation(target, ids)
+    target = None
+    ids = []
+    for arg in sys.argv[1:]:
+        if arg.isdigit():
+            ids.append(int(arg))
+        elif os.path.isdir(arg) or "videos" in arg:
+            target = arg
+    run_generation(target, ids if ids else None)
