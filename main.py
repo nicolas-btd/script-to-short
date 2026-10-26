@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -34,6 +35,24 @@ def main():
     parser.add_argument("--web-only", action="store_true", help="Only launch local web review interface")
     parser.add_argument("--fps", type=int, default=30, help="Output video frame rate (default: 30)")
 
+    # Subtitle Customization
+    sub_group = parser.add_argument_group("Subtitle Controls")
+    sub_group.add_argument("--sub-pos", choices=["top", "center", "bottom"], help="Preset vertical subtitle position")
+    sub_group.add_argument("--sub-y", type=float, help="Custom vertical position as percent from top (e.g. 0.70 bottom, 0.50 center, 0.20 top)")
+    sub_group.add_argument("--sub-size", type=int, help="Subtitle font size (e.g. 60, 70, 85)")
+    sub_group.add_argument("--sub-color", help="Inactive text color (hex '#FFFFFF' or '255,255,255')")
+    sub_group.add_argument("--sub-accent", help="Active spoken word highlight color (hex '#FFD43B', '255,212,59', or 'none' to disable)")
+    sub_group.add_argument("--sub-align", choices=["center", "left", "right"], help="Horizontal text alignment")
+    sub_group.add_argument("--no-subtitles", action="store_true", help="Disable subtitles completely")
+
+    # Visual Effects Customization
+    fx_group = parser.add_argument_group("Visual Effect Controls")
+    fx_group.add_argument("--no-zoom", action="store_true", help="Disable Ken Burns zoom animations (static images)")
+    fx_group.add_argument("--zoom-intensity", type=float, help="Zoom scale factor (default: 0.08)")
+    fx_group.add_argument("--zoom-mode", choices=["alternate", "in", "out", "none"], help="Zoom motion direction")
+    fx_group.add_argument("--no-shake", action="store_true", help="Disable camera shake effects")
+    fx_group.add_argument("--no-keywords", action="store_true", help="Disable top keyword popups")
+
     args = parser.parse_args()
 
     # Dynamic imports
@@ -54,7 +73,53 @@ def main():
     account_name = detect_account_name(str(target_path), args.account)
     save_account_marker(str(target_path), account_name)
 
-    # Detect mode display
+    # Build and persist CLI overrides into project config.json if supplied
+    cli_overrides = {"subtitles": {}, "visual_fx": {}, "editing": {}}
+    if args.no_subtitles:
+        cli_overrides["subtitles"]["enabled"] = False
+    if args.sub_pos:
+        cli_overrides["subtitles"]["position"] = args.sub_pos
+    if args.sub_y is not None:
+        cli_overrides["subtitles"]["y_percent"] = args.sub_y
+    if args.sub_size is not None:
+        cli_overrides["subtitles"]["size"] = args.sub_size
+    if args.sub_color:
+        cli_overrides["subtitles"]["inactive_color"] = args.sub_color
+    if args.sub_accent is not None:
+        cli_overrides["subtitles"]["active_color"] = None if args.sub_accent.lower() in ("none", "null", "false", "no", "off") else args.sub_accent
+    if args.sub_align:
+        cli_overrides["subtitles"]["alignment"] = args.sub_align
+
+    if args.no_zoom:
+        cli_overrides["visual_fx"]["zoom_enabled"] = False
+    if args.zoom_intensity is not None:
+        cli_overrides["visual_fx"]["zoom_intensity"] = args.zoom_intensity
+    if args.zoom_mode:
+        cli_overrides["visual_fx"]["zoom_mode"] = args.zoom_mode
+    if args.no_shake:
+        cli_overrides["visual_fx"]["shake_enabled"] = False
+
+    if args.no_keywords:
+        cli_overrides["editing"]["show_keywords"] = False
+
+    # Clean empty override dictionaries
+    cli_overrides = {k: v for k, v in cli_overrides.items() if v}
+
+    if cli_overrides:
+        cfg_file = target_path / "config.json"
+        existing_cfg = {}
+        if cfg_file.is_file():
+            try:
+                existing_cfg = json.loads(cfg_file.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+        for section, vals in cli_overrides.items():
+            if section not in existing_cfg or not isinstance(existing_cfg[section], dict):
+                existing_cfg[section] = {}
+            existing_cfg[section].update(vals)
+        cfg_file.write_text(json.dumps(existing_cfg, indent=2, ensure_ascii=False), encoding="utf-8")
+        log_step("CONFIG", f"Updated project overrides in {cfg_file.name}")
+
     has_timeline = (target_path / "timeline_raw.json").is_file() or (target_path / "scenes.json").is_file()
     effective_mode = args.mode or ("manual" if has_timeline else "auto")
 
@@ -67,7 +132,7 @@ def main():
     if args.render_only:
         log_step("PIPELINE", "Running timeline and video render directly...")
         build_timeline(str(target_path))
-        out_mp4 = render_video(str(target_path), fps=args.fps)
+        out_mp4 = render_video(str(target_path), fps=args.fps, cli_overrides=cli_overrides)
         print("==============================================================")
         print(f"Render completed: {out_mp4}")
         print("==============================================================")

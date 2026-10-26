@@ -10,7 +10,12 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from scipy.io import wavfile
 
-from .account_manager import detect_account_name, load_account_config, resolve_font_path
+from .account_manager import (
+    detect_account_name,
+    load_account_config,
+    parse_color,
+    resolve_font_path,
+)
 from .utils import get_project_root, log_step
 
 
@@ -38,7 +43,6 @@ def mix_audio(target_dir: str, timeline_data: dict, output_audio_path: str):
     v_len = min(len(voice), total_samples)
     audio_out[:v_len, :] = voice[:v_len, :]
 
-    # Search for sfx in target_dir/sfx, then assets/sfx
     sfx_candidates = [
         target_path / "sfx",
         get_project_root() / "assets" / "sfx"
@@ -102,7 +106,7 @@ def mix_audio(target_dir: str, timeline_data: dict, output_audio_path: str):
     log_step("RENDER", f"Audio and SFX mixed: {Path(output_audio_path).name} ({len(audio_out)/sr:.2f}s)")
 
 
-def render_video(target_dir: str, fps: int = 30) -> str:
+def render_video(target_dir: str, fps: int = 30, cli_overrides: dict = None) -> str:
     target_path = Path(target_dir).resolve()
     json_path = target_path / "timeline_processed.json"
 
@@ -118,12 +122,22 @@ def render_video(target_dir: str, fps: int = 30) -> str:
     mix_audio(str(target_path), data, str(out_audio_path))
 
     account_name = detect_account_name(str(target_path))
-    acc_cfg = load_account_config(account_name, str(target_path))
-    sub_cfg = acc_cfg.get("subtitles", {})
-    edit_cfg = acc_cfg.get("editing", {})
-    show_keywords = bool(edit_cfg.get("show_keywords", True))
+    acc_cfg = load_account_config(account_name, str(target_path), cli_overrides=cli_overrides)
 
-    log_step("RENDER", f"Visual style profile: '{account_name}' (keywords: {'enabled' if show_keywords else 'disabled'})")
+    sub_cfg = acc_cfg.get("subtitles", {})
+    vfx_cfg = acc_cfg.get("visual_fx", {})
+    edit_cfg = acc_cfg.get("editing", {})
+
+    subtitles_enabled = bool(sub_cfg.get("enabled", True))
+    show_keywords = bool(edit_cfg.get("show_keywords", True))
+    zoom_enabled = bool(vfx_cfg.get("zoom_enabled", True))
+    zoom_intensity = float(vfx_cfg.get("zoom_intensity", 0.08))
+    zoom_mode = str(vfx_cfg.get("zoom_mode", "alternate")).lower()
+    shake_enabled = bool(vfx_cfg.get("shake_enabled", True))
+    shake_intensity = float(vfx_cfg.get("shake_intensity", 10.0))
+
+    log_step("RENDER", f"Style profile: '{account_name}'")
+    log_step("RENDER", f"Subtitles: {'enabled' if subtitles_enabled else 'disabled'} | Zoom: {'enabled (' + zoom_mode + ', ' + str(zoom_intensity) + ')' if zoom_enabled else 'disabled'}")
 
     font_spec = sub_cfg.get("font", "Arial Rounded Bold")
     font_path = resolve_font_path(font_spec, account_name)
@@ -141,12 +155,25 @@ def render_video(target_dir: str, fps: int = 30) -> str:
     except Exception:
         f_key = ImageFont.load_default()
 
-    active_color = tuple(sub_cfg.get("active_color", [255, 212, 59]))
-    inactive_color = tuple(sub_cfg.get("inactive_color", [255, 255, 255]))
-    stroke_color = tuple(sub_cfg.get("stroke_color", [0, 0, 0]))
+    # Colors
+    inactive_color = parse_color(sub_cfg.get("inactive_color"), default=(255, 255, 255))
+    active_color = parse_color(sub_cfg.get("active_color"), default=None)  # None means no accentuation
+    stroke_color = parse_color(sub_cfg.get("stroke_color"), default=(0, 0, 0))
     stroke_width = int(sub_cfg.get("stroke_width", 6))
-    y_percent = float(sub_cfg.get("y_percent", 0.70))
+
+    # Position
+    pos_named = str(sub_cfg.get("position", "")).lower()
+    if pos_named == "top":
+        y_percent = 0.22
+    elif pos_named == "center":
+        y_percent = 0.50
+    elif pos_named == "bottom":
+        y_percent = 0.75
+    else:
+        y_percent = float(sub_cfg.get("y_percent", 0.70))
+
     sub_y = int(1920 * y_percent)
+    alignment = str(sub_cfg.get("alignment", "center")).lower()
     is_uppercase = bool(sub_cfg.get("uppercase", True))
 
     log_step("RENDER", f"Loading {len(timeline)} scene images...")
@@ -161,7 +188,6 @@ def render_video(target_dir: str, fps: int = 30) -> str:
         if img_p.is_file():
             img_cache[img_id] = Image.open(str(img_p)).convert("RGB")
         else:
-            # Fallback blank image
             img_cache[img_id] = Image.new("RGB", (1080, 1920), (30, 30, 30))
 
     kw_cache = {}
@@ -236,16 +262,25 @@ def render_video(target_dir: str, fps: int = 30) -> str:
         prog = min(1.0, max(0.0, (t - t_start) / dur))
         ease = 0.5 - 0.5 * math.cos(math.pi * prog)
 
-        if item["id"] % 2 == 1:
-            zoom = 1.00 + 0.08 * ease
-        else:
-            zoom = 1.08 - 0.08 * ease
+        # 1. Visual Effect: Zooms
+        if not zoom_enabled or zoom_mode == "none":
+            zoom = 1.00
+        elif zoom_mode == "in":
+            zoom = 1.00 + zoom_intensity * ease
+        elif zoom_mode == "out":
+            zoom = (1.00 + zoom_intensity) - zoom_intensity * ease
+        else:  # alternate
+            if item["id"] % 2 == 1:
+                zoom = 1.00 + zoom_intensity * ease
+            else:
+                zoom = (1.00 + zoom_intensity) - zoom_intensity * ease
 
-        if "shake" in item.get("fx", []):
+        # 2. Visual Effect: Camera Shake
+        if shake_enabled and "shake" in item.get("fx", []):
             t_rel = t - t_start
             if 0.0 <= t_rel <= 0.4:
                 decay = 1.0 - (t_rel / 0.4)
-                amp = 10.0 * decay
+                amp = shake_intensity * decay
                 dx = amp * math.sin(2 * math.pi * 45.0 * t_rel)
                 dy = amp * math.cos(2 * math.pi * 60.0 * t_rel)
             else:
@@ -265,7 +300,7 @@ def render_video(target_dir: str, fps: int = 30) -> str:
         src_im = img_cache[item["id"]]
         frame = src_im.crop((x0, y0, x1, y1)).resize((1080, 1920), Image.Resampling.BILINEAR)
 
-        # Keyword
+        # Draw Keyword Banner
         if show_keywords:
             kw = item.get("keyword")
             if kw and kw in kw_cache:
@@ -292,43 +327,55 @@ def render_video(target_dir: str, fps: int = 30) -> str:
                     kw_y = int(1920 * 0.18) - (kw_h // 2)
                     frame.paste(kw_to_paste, (kw_x, kw_y), kw_to_paste)
 
-        # Subtitles
-        active_grp = None
-        for grp in subtitles:
-            if grp["start"] <= t < grp.get("display_end", grp["end"]):
-                active_grp = grp
-                break
-            if grp["start"] > t:
-                break
-
-        if active_grp:
-            words = active_grp["words"]
-            format_word = (lambda s: s.upper()) if is_uppercase else (lambda s: s)
-            tot_w = sum(dummy_draw.textlength(format_word(w["word"]), font=f_sub) for w in words) + space_w * (len(words) - 1)
-            sub_x = (1080 - tot_w) / 2.0
-
-            active_word_idx = -1
-            for wi, w in enumerate(words):
-                next_start = words[wi + 1]["start"] if wi + 1 < len(words) else w["end"]
-                if w["start"] <= t < max(w["end"], next_start):
-                    active_word_idx = wi
+        # Draw Subtitles
+        if subtitles_enabled:
+            active_grp = None
+            for grp in subtitles:
+                if grp["start"] <= t < grp.get("display_end", grp["end"]):
+                    active_grp = grp
+                    break
+                if grp["start"] > t:
                     break
 
-            draw_f = ImageDraw.Draw(frame)
-            cur_x = sub_x
-            for wi, w in enumerate(words):
-                w_str = format_word(w["word"])
-                is_active = (wi == active_word_idx)
-                fill_color = active_color if is_active else inactive_color
-                draw_f.text(
-                    (cur_x, sub_y),
-                    w_str,
-                    font=f_sub,
-                    fill=fill_color,
-                    stroke_width=stroke_width,
-                    stroke_fill=stroke_color
-                )
-                cur_x += dummy_draw.textlength(w_str, font=f_sub) + space_w
+            if active_grp:
+                words = active_grp["words"]
+                format_word = (lambda s: s.upper()) if is_uppercase else (lambda s: s)
+                tot_w = sum(dummy_draw.textlength(format_word(w["word"]), font=f_sub) for w in words) + space_w * (len(words) - 1)
+
+                if alignment == "left":
+                    sub_x = 100.0
+                elif alignment == "right":
+                    sub_x = 1080.0 - 100.0 - tot_w
+                else:
+                    sub_x = (1080.0 - tot_w) / 2.0
+
+                active_word_idx = -1
+                for wi, w in enumerate(words):
+                    next_start = words[wi + 1]["start"] if wi + 1 < len(words) else w["end"]
+                    if w["start"] <= t < max(w["end"], next_start):
+                        active_word_idx = wi
+                        break
+
+                draw_f = ImageDraw.Draw(frame)
+                cur_x = sub_x
+                for wi, w in enumerate(words):
+                    w_str = format_word(w["word"])
+                    # If active_color is set and this is the active word, use it; otherwise use inactive_color
+                    is_active = (wi == active_word_idx)
+                    if is_active and active_color is not None:
+                        fill_color = active_color
+                    else:
+                        fill_color = inactive_color
+
+                    draw_f.text(
+                        (cur_x, sub_y),
+                        w_str,
+                        font=f_sub,
+                        fill=fill_color,
+                        stroke_width=stroke_width,
+                        stroke_fill=stroke_color
+                    )
+                    cur_x += dummy_draw.textlength(w_str, font=f_sub) + space_w
 
         proc.stdin.write(frame.tobytes())
 

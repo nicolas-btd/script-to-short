@@ -224,6 +224,9 @@ def build_timeline(target_dir: str) -> str:
             return sum(dummy_draw.textlength(w["word"], font=f_sub) for w in grp) + space_w * (len(grp) - 1)
         return float(len(grp) * 80)
 
+    max_words = int(sub_cfg.get("max_words", 3))
+    max_width = int(sub_cfg.get("max_width", 880))
+
     for idx, tok in enumerate(merged_tokens):
         ch_end = tok["end_char"]
         punct = ""
@@ -239,7 +242,7 @@ def build_timeline(target_dir: str) -> str:
         test_group = cur_group + [tok_entry]
         w = calc_group_width(test_group)
 
-        if cur_group and (len(test_group) > 3 or w > 880):
+        if cur_group and (len(test_group) > max_words or w > max_width):
             subtitle_groups.append({
                 "start": cur_group[0]["start"],
                 "end": cur_group[-1]["end"],
@@ -252,7 +255,7 @@ def build_timeline(target_dir: str) -> str:
         has_break_punct = bool(re.search(r"[,.!?;:…—]", punct))
         pause_after = (merged_tokens[idx + 1]["start"] - tok["end"]) if idx + 1 < len(merged_tokens) else 1.0
 
-        if len(cur_group) >= 3 or has_break_punct or pause_after > 0.35:
+        if len(cur_group) >= max_words or has_break_punct or pause_after > 0.35:
             subtitle_groups.append({
                 "start": cur_group[0]["start"],
                 "end": cur_group[-1]["end"],

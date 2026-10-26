@@ -1,24 +1,37 @@
 {
   "name": "nouveau_compte",
   "subtitles": {
+    "enabled": true,
     "font": "Arial Rounded Bold",
     "size": 70,
+    "position": "bottom",
+    "y_percent": 0.70,
+    "alignment": "center",
     "active_color": [0, 230, 255],
     "inactive_color": [255, 255, 255],
     "stroke_color": [0, 0, 0],
     "stroke_width": 6,
-    "y_percent": 0.70,
-    "uppercase": true
+    "uppercase": true,
+    "max_words": 3,
+    "max_width": 880
+  },
+  "visual_fx": {
+    "zoom_enabled": true,
+    "zoom_intensity": 0.08,
+    "zoom_mode": "alternate",
+    "shake_enabled": true,
+    "shake_intensity": 10.0
   },
   "editing": {
     "min_scene_dur": 1.0,
     "max_scene_dur": 2.2,
     "keyword_font_size": 150,
+    "show_keywords": true,
     "sfx_pack": "cartoon"
   },
   "voice": {
     "name": "Puck",
-    "style": "A dynamic, engaging French male explainer voice for TikTok. Lively rhythm and crisp pronunciation, but with softer rounded vocal attacks, warmer tone, and relaxed natural pacing."
+    "style": "A dynamic, engaging narrator voice for short-form video. Lively rhythm and crisp pronunciation, but with natural pacing."
   },
   "flow": {
     "prefixes": {

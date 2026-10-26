@@ -213,6 +213,12 @@ python main.py videos/demo
 ```
 usage: main.py [-h] [--mode {auto,manual}] [--account ACCOUNT] [--skip-voice]
                [--skip-flow] [--render-only] [--web-only] [--fps FPS]
+               [--sub-pos {top,center,bottom}] [--sub-y SUB_Y]
+               [--sub-size SUB_SIZE] [--sub-color SUB_COLOR]
+               [--sub-accent SUB_ACCENT] [--sub-align {center,left,right}]
+               [--no-subtitles] [--no-zoom] [--zoom-intensity ZOOM_INTENSITY]
+               [--zoom-mode {alternate,in,out,none}] [--no-shake]
+               [--no-keywords]
                video_dir
 
 positional arguments:
@@ -227,58 +233,82 @@ options:
   --render-only         Directly build timeline and render final video
   --web-only            Only launch local web review interface
   --fps FPS             Output video frame rate (default: 30)
+
+Subtitle Controls:
+  --sub-pos {top,center,bottom}
+                        Preset vertical subtitle position
+  --sub-y SUB_Y         Custom vertical position as percent from top (e.g. 0.70 bottom, 0.50 center, 0.20 top)
+  --sub-size SUB_SIZE   Subtitle font size (e.g. 60, 70, 85)
+  --sub-color SUB_COLOR
+                        Inactive text color (hex '#FFFFFF' or '255,255,255')
+  --sub-accent SUB_ACCENT
+                        Active spoken word highlight color (hex '#FFD43B', '255,212,59', or 'none' to disable)
+  --sub-align {center,left,right}
+                        Horizontal text alignment
+  --no-subtitles        Disable subtitles completely
+
+Visual Effect Controls:
+  --no-zoom             Disable Ken Burns zoom animations (static images)
+  --zoom-intensity ZOOM_INTENSITY
+                        Zoom scale factor (default: 0.08)
+  --zoom-mode {alternate,in,out,none}
+                        Zoom motion direction
+  --no-shake            Disable camera shake effects
+  --no-keywords         Disable top keyword popups
 ```
 
 ### Examples
 
-Run an existing project with the documentary style:
+Run with centered subtitles and no active word highlighting:
 ```bash
-python main.py videos/history_ep1 --account documentary
+python main.py videos/demo --sub-pos center --sub-accent none
 ```
 
-Re-render an existing video without regenerating assets:
+Run with custom position, larger text, and static frames (no zoom):
 ```bash
-python main.py videos/demo --render-only
+python main.py videos/demo --sub-y 0.65 --sub-size 85 --no-zoom
 ```
 
-Launch only the web selection server:
+Re-render an existing project with custom accent color and subtle zoom:
 ```bash
-python main.py videos/demo --web-only
+python main.py videos/demo --render-only --sub-accent "#00E6FF" --zoom-intensity 0.04
 ```
 
 ---
 
-## Account Style Profiles
+## Configuration & Customization
 
-Profiles allow you to define distinct visual identities, narration styles, and subtitle typography per channel.
+Settings can be customized at three levels (highest priority wins):
+1. **CLI Flags** (`--sub-y`, `--sub-accent`, etc.)
+2. **Project-level config** (`videos/<my_project>/config.json`)
+3. **Account profile config** (`accounts/<profile>/config.json`)
 
-Profiles are located in `accounts/`:
-- `cartoon`: Minimalist stickman vector illustration with bold rounded subtitles.
-- `documentary`: Cinematic historical / exploratory framing with high-contrast text.
-- `medical`: Clean 3D educational style with scientific pacing.
-- `horror`: Analog VHS mystery tone and dramatic pacing.
-- `_template`: Bare template for creating new accounts.
+### Full Configuration Reference (`config.json`)
 
-### Creating a New Profile
-
-1. Duplicate the template folder:
-```bash
-cp -r accounts/_template accounts/my_new_style
-```
-
-2. Edit `accounts/my_new_style/config.json`:
 ```json
 {
-  "name": "my_new_style",
+  "name": "custom_profile",
   "subtitles": {
+    "enabled": true,
     "font": "Arial Rounded Bold",
-    "size": 72,
+    "size": 70,
+    "position": "bottom",
+    "y_percent": 0.70,
+    "alignment": "center",
     "active_color": [255, 212, 59],
     "inactive_color": [255, 255, 255],
     "stroke_color": [0, 0, 0],
     "stroke_width": 6,
-    "y_percent": 0.70,
-    "uppercase": true
+    "uppercase": true,
+    "max_words": 3,
+    "max_width": 880
+  },
+  "visual_fx": {
+    "zoom_enabled": true,
+    "zoom_intensity": 0.08,
+    "zoom_mode": "alternate",
+    "shake_enabled": true,
+    "shake_intensity": 10.0
   },
   "editing": {
     "min_scene_dur": 1.0,
@@ -289,12 +319,31 @@ cp -r accounts/_template accounts/my_new_style
   },
   "voice": {
     "name": "Puck",
-    "style": "A lively, clear explainer voice for TikTok."
+    "style": "A dynamic, engaging narrator voice for short-form video."
   }
 }
 ```
 
-3. Customize prompt rules in `accounts/my_new_style/prompt.txt`.
+#### Subtitle Options
+- `enabled` (bool): Toggle subtitle display on/off.
+- `size` (int): Text point size.
+- `position` (str): `"top"` (0.22), `"center"` (0.50), or `"bottom"` (0.75).
+- `y_percent` (float): Exact vertical position from 0.0 (top) to 1.0 (bottom).
+- `alignment` (str): `"center"`, `"left"`, or `"right"`.
+- `active_color` (list, str, or null): Color of the current spoken word. Set to `null` or `"none"` for monochrome subtitles with zero accentuation.
+- `inactive_color` (list or str): Color of non-active words (default: white).
+- `max_words` (int): Maximum words grouped per subtitle line (default: 3).
+
+#### Visual Effect Options
+- `zoom_enabled` (bool): Enable or disable Ken Burns camera zooms.
+- `zoom_intensity` (float): Zoom scale delta (e.g. `0.04` for subtle, `0.08` for standard, `0.15` for dramatic).
+- `zoom_mode` (str):
+  - `"alternate"`: Alternates zooming in and zooming out across scenes.
+  - `"in"`: Every scene zooms in.
+  - `"out"`: Every scene zooms out.
+  - `"none"`: Completely static frames.
+- `shake_enabled` (bool): Enable or disable camera shake animations on dramatic scenes.
+- `shake_intensity` (float): Amplitude of camera shake in pixels (default: 10.0).
 
 ---
 

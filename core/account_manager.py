@@ -10,6 +10,7 @@ DEFAULT_ACCOUNT = "cartoon"
 DEFAULT_CONFIG = {
     "name": "cartoon",
     "subtitles": {
+        "enabled": True,
         "font": "Arial Rounded Bold",
         "size": 70,
         "active_color": [255, 212, 59],
@@ -17,7 +18,17 @@ DEFAULT_CONFIG = {
         "stroke_color": [0, 0, 0],
         "stroke_width": 6,
         "y_percent": 0.70,
-        "uppercase": True
+        "alignment": "center",
+        "uppercase": True,
+        "max_words": 3,
+        "max_width": 880
+    },
+    "visual_fx": {
+        "zoom_enabled": True,
+        "zoom_intensity": 0.08,
+        "zoom_mode": "alternate",
+        "shake_enabled": True,
+        "shake_intensity": 10.0
     },
     "editing": {
         "min_scene_dur": 1.0,
@@ -37,6 +48,30 @@ DEFAULT_CONFIG = {
         "prefixes": {}
     }
 }
+
+
+def parse_color(c, default=None):
+    if c is None or c is False:
+        return None
+    s = str(c).strip().lower()
+    if s in ("none", "null", "false", "no", "off", ""):
+        return None
+    if isinstance(c, (list, tuple)):
+        return tuple(int(x) for x in c[:3])
+    if isinstance(c, str):
+        cleaned = c.lstrip("#").strip()
+        if len(cleaned) == 6:
+            try:
+                return (int(cleaned[0:2], 16), int(cleaned[2:4], 16), int(cleaned[4:6], 16))
+            except ValueError:
+                pass
+        if "," in c:
+            try:
+                parts = [int(p.strip()) for p in c.split(",")]
+                return tuple(parts[:3])
+            except ValueError:
+                pass
+    return default
 
 
 def get_accounts_root() -> Path:
@@ -90,13 +125,14 @@ def get_account_dir(account_name: str) -> Path:
     return get_accounts_root() / account_name
 
 
-def load_account_config(account_name: str, video_dir: str = None) -> dict:
+def load_account_config(account_name: str, video_dir: str = None, cli_overrides: dict = None) -> dict:
     acc_dir = get_account_dir(account_name)
     config_path = acc_dir / "config.json"
 
     cfg = json.loads(json.dumps(DEFAULT_CONFIG))
     cfg["name"] = account_name
 
+    # 1. Load account-level config
     if config_path.is_file():
         try:
             user_cfg = json.loads(config_path.read_text(encoding="utf-8"))
@@ -108,6 +144,7 @@ def load_account_config(account_name: str, video_dir: str = None) -> dict:
         except Exception as e:
             log_step("ACCOUNT", f"Warning: Failed to load {config_path}: {e}")
 
+    # 2. Load video-level config override
     if video_dir:
         vid_cfg_path = Path(video_dir) / "config.json"
         if vid_cfg_path.is_file():
@@ -120,6 +157,16 @@ def load_account_config(account_name: str, video_dir: str = None) -> dict:
                         cfg[k] = v
             except Exception as e:
                 log_step("ACCOUNT", f"Warning: Failed to load {vid_cfg_path}: {e}")
+
+    # 3. Apply CLI overrides
+    if cli_overrides:
+        for section, values in cli_overrides.items():
+            if section in cfg and isinstance(cfg[section], dict):
+                for k, v in values.items():
+                    if v is not None:
+                        cfg[section][k] = v
+            elif values is not None:
+                cfg[section] = values
 
     return cfg
 
