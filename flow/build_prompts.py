@@ -33,15 +33,13 @@ def build_prompts(target_dir: str, custom_prefixes: dict = None) -> str:
     target_path = Path(target_dir).resolve()
     jsonl_path = target_path / "prompts.jsonl"
     json_path = target_path / "prompts.json"
-
-    if not jsonl_path.is_file():
-        raise FileNotFoundError(f"Missing prompts file: {jsonl_path}")
+    raw_timeline_path = target_path / "timeline_raw.json"
+    scenes_path = target_path / "scenes.json"
 
     prefixes = dict(DEFAULT_PREFIXES)
     if custom_prefixes:
         prefixes.update(custom_prefixes)
 
-    # Check for account_prefixes.json in target or parent
     cand_prefixes = target_path / "account_prefixes.json"
     if cand_prefixes.is_file():
         try:
@@ -50,21 +48,43 @@ def build_prompts(target_dir: str, custom_prefixes: dict = None) -> str:
         except Exception:
             pass
 
-    records = []
-    for line in jsonl_path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line:
-            continue
+    items = []
+    if jsonl_path.is_file():
+        for line in jsonl_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line:
+                try:
+                    items.append(json.loads(line))
+                except Exception:
+                    pass
+    elif raw_timeline_path.is_file():
         try:
-            item = json.loads(line)
+            items = json.loads(raw_timeline_path.read_text(encoding="utf-8"))
         except Exception:
-            continue
+            pass
+    elif scenes_path.is_file():
+        try:
+            items = json.loads(scenes_path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    elif json_path.is_file():
+        return str(json_path)
+    else:
+        raise FileNotFoundError(
+            f"No prompts source found in {target_path} (expected prompts.jsonl, timeline_raw.json, or scenes.json)"
+        )
 
+    records = []
+    for item in items:
         s_type = item.get("s", "man")
         prefix = prefixes.get(s_type, prefixes.get("scene", ""))
         scene = item.get("scene", "").strip()
 
-        full_prompt = f"{prefix} {scene}".strip() if prefix else scene
+        # If user already wrote a full prompt in scene or prompt key
+        if "prompt" in item and item["prompt"]:
+            full_prompt = item["prompt"]
+        else:
+            full_prompt = f"{prefix} {scene}".strip() if prefix else scene
 
         records.append({
             "id": item.get("id"),

@@ -51,6 +51,54 @@ Producing high-retention short-form videos requires orchestrating voice synthesi
 - Local Web Selector: Fast keyboard navigation (`1`, `2`, `3`, `X`) to pick optimal image variants.
 - Multi-Account Profiles: Switch visual presets, subtitle fonts, and voice parameters via dedicated profiles.
 
+## Pipeline Modes
+
+`script-to-short` supports two distinct operating modes:
+
+### Mode 1: Script Input (Auto Mode with Gemini 2.5 Flash)
+- **Input:** `videos/project/script.txt`
+- **Behavior:** Gemini 2.5 Flash analyzes your script, generates scene cuts (1-2s pacing), detects key moments for sound effects (`sfx`), selects animated uppercase keywords, and writes visual prompts for Google Flow.
+- **Usage:**
+```bash
+python main.py videos/my_project --mode auto
+```
+
+### Mode 2: Timeline Input (Manual Mode with Zero LLM Call)
+- **Input:** `videos/project/timeline_raw.json` (or `scenes.json`)
+- **Behavior:** Bypasses LLM generation completely. You provide your own pre-written scenes, prompts, and sound effect markers. Ideal for using other LLMs (ChatGPT, Claude, local Ollama) or writing custom prompts manually.
+- **Usage:**
+```bash
+python main.py videos/my_project --mode manual
+```
+
+> If `timeline_raw.json` or `scenes.json` is present in the video directory, Manual Mode is automatically detected.
+
+#### Manual Timeline Format (`timeline_raw.json` or `scenes.json`)
+```json
+[
+  {
+    "id": 1,
+    "anchor": "Pourquoi les moustiques",
+    "keyword": "MOUSTIQUES",
+    "sfx": "whoosh",
+    "fx": ["shake"],
+    "refs": ["C1"],
+    "s": "man",
+    "scene": "A stickman looking annoyed as a tiny mosquito buzzes around him."
+  },
+  {
+    "id": 2,
+    "anchor": "Ce n'est pas une question",
+    "keyword": null,
+    "sfx": "pop",
+    "fx": [],
+    "refs": ["C1"],
+    "s": "obj",
+    "scene": "A sugar cube and a tube of red blood with a cross symbol."
+  }
+]
+```
+
 ---
 
 ## Architecture
@@ -163,21 +211,22 @@ python main.py videos/demo
 ## CLI Reference
 
 ```
-usage: main.py [-h] [--account ACCOUNT] [--skip-voice] [--skip-flow]
-               [--render-only] [--web-only] [--fps FPS]
+usage: main.py [-h] [--mode {auto,manual}] [--account ACCOUNT] [--skip-voice]
+               [--skip-flow] [--render-only] [--web-only] [--fps FPS]
                video_dir
 
 positional arguments:
-  video_dir          Path to project folder containing script.txt
+  video_dir             Path to project folder containing script.txt or timeline_raw.json
 
 options:
-  -h, --help         Show this help message and exit
-  --account ACCOUNT  Account style profile (e.g. cartoon, documentary, medical, horror)
-  --skip-voice       Skip Gemini TTS generation if voix.mp3 exists
-  --skip-flow        Skip Google Flow image generation
-  --render-only      Directly build timeline and render final video
-  --web-only         Only launch local web review interface
-  --fps FPS          Output video frame rate (default: 30)
+  -h, --help            Show this help message and exit
+  --mode {auto,manual}  Pipeline mode: 'auto' (Gemini 2.5 Flash) or 'manual' (Zero LLM)
+  --account ACCOUNT     Account style profile (e.g. cartoon, documentary, medical, horror)
+  --skip-voice          Skip Gemini TTS generation if voix.mp3 exists
+  --skip-flow           Skip Google Flow image generation
+  --render-only         Directly build timeline and render final video
+  --web-only            Only launch local web review interface
+  --fps FPS             Output video frame rate (default: 30)
 ```
 
 ### Examples

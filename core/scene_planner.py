@@ -46,23 +46,18 @@ def call_gemini_json(prompt: str, api_key: str, model_name: str = "gemini-2.5-fl
         raise RuntimeError(f"Failed to parse Gemini JSON response: {e}")
 
 
-def plan_scenes(target_dir: str, account_name: str = None) -> dict:
+def plan_scenes(target_dir: str, account_name: str = None, force_mode: str = None) -> dict:
     target_path = Path(target_dir).resolve()
     script_path = target_path / "script.txt"
-
-    if not script_path.is_file():
-        raise FileNotFoundError(f"Missing script file: {script_path}")
-
-    load_env(str(target_path))
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("GEMINI_API_KEY environment variable is not defined.")
+    raw_path = target_path / "timeline_raw.json"
+    scenes_path = target_path / "scenes.json"
+    prompts_path = target_path / "prompts.json"
 
     account_name = detect_account_name(str(target_path), account_name)
     save_account_marker(str(target_path), account_name)
     acc_cfg = load_account_config(account_name, str(target_path))
 
-    log_step("PLANNER", f"Active account profile: '{account_name}'")
+    log_step("PLANNER", f"Active style profile: '{account_name}'")
 
     # Sync reference images if available
     acc_refs = get_account_dir(account_name) / "refs"
@@ -73,28 +68,69 @@ def plan_scenes(target_dir: str, account_name: str = None) -> dict:
             if rf.suffix.lower() in [".jpg", ".jpeg", ".png"]:
                 shutil.copy2(rf, flow_refs / rf.name)
 
-    # 1. Voice generation if missing
+    # 1. Voice audio preparation
     voice_path = target_path / "voix.mp3"
     if not voice_path.is_file():
+        if not script_path.is_file():
+            raise FileNotFoundError(
+                f"Missing both audio and narration: provide either voix.mp3 or script.txt in {target_path}"
+            )
         v_name = acc_cfg.get("voice", {}).get("name", "Puck")
         v_style = acc_cfg.get("voice", {}).get("style")
         generate_voice(str(target_path), voice_name=v_name, style=v_style)
     else:
-        log_step("PLANNER", f"Existing voice audio found: {voice_path.name}")
+        log_step("PLANNER", f"Existing voice audio detected: {voice_path.name}")
 
-    # 2. Whisper transcription if missing
+    # 2. Whisper transcription
     whisper_path = target_path / "whisper_words.json"
     if not whisper_path.is_file():
         transcribe_audio(str(target_path))
     else:
-        log_step("PLANNER", f"Existing transcription found: {whisper_path.name}")
+        log_step("PLANNER", f"Existing transcription detected: {whisper_path.name}")
+
+    # Determine execution mode: Manual (Timeline input) vs Auto (Script input)
+    has_predefined_timeline = raw_path.is_file() or scenes_path.is_file()
+    is_manual_mode = (force_mode == "manual") or (force_mode != "auto" and has_predefined_timeline)
+
+    # =========================================================================
+    # MODE 2: TIMELINE / MANUAL INPUT (ZERO LLM CALL)
+    # =========================================================================
+    if is_manual_mode:
+        log_step("PLANNER", "Mode: Timeline input (manual mode). Bypassing LLM generation.")
+
+        if not raw_path.is_file() and scenes_path.is_file():
+            shutil.copy2(scenes_path, raw_path)
+
+        if not raw_path.is_file():
+            raise FileNotFoundError(
+                f"Manual mode selected but no timeline found: create {raw_path.name} or {scenes_path.name}"
+            )
+
+        # Build prompts.json if not already present
+        from flow.build_prompts import build_prompts
+        prefixes = acc_cfg.get("flow", {}).get("prefixes", {})
+        build_prompts(str(target_path), custom_prefixes=prefixes)
+
+        timeline_raw = json.loads(raw_path.read_text(encoding="utf-8"))
+        log_step("PLANNER", f"Loaded {len(timeline_raw)} pre-defined scenes without LLM call.")
+        return {"timeline_raw": timeline_raw}
+
+    # =========================================================================
+    # MODE 1: SCRIPT INPUT (AUTOMATIC SCENE BREAKDOWN VIA GEMINI 2.5 FLASH)
+    # =========================================================================
+    log_step("PLANNER", "Mode: Script input (auto mode). Splitting scenes via Gemini 2.5 Flash...")
+
+    if not script_path.is_file():
+        raise FileNotFoundError(f"Missing script file for auto mode: {script_path}")
+
+    load_env(str(target_path))
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY environment variable is required for script auto mode.")
 
     whisper_words = json.loads(whisper_path.read_text(encoding="utf-8"))
     total_voice_dur = whisper_words[-1]["end"] if whisper_words else 60.0
     script_text = script_path.read_text(encoding="utf-8").strip()
-
-    log_step("PLANNER", f"Audio duration: {total_voice_dur:.2f}s ({len(whisper_words)} words)")
-    log_step("PLANNER", "Generating scene timeline and visual prompts with Gemini 2.5 Flash...")
 
     editing_cfg = acc_cfg.get("editing", {})
     min_dur = float(editing_cfg.get("min_scene_dur", 1.0))
@@ -149,17 +185,13 @@ Respond strictly with valid JSON containing:
     prompts_list = data.get("prompts", [])
     cover_data = data.get("cover", {})
 
-    # Save timeline_raw.json
-    raw_path = target_path / "timeline_raw.json"
     raw_path.write_text(json.dumps(timeline_raw, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    # Save prompts.jsonl
     jsonl_path = target_path / "prompts.jsonl"
     with jsonl_path.open("w", encoding="utf-8") as f:
         for p in prompts_list:
             f.write(json.dumps(p, ensure_ascii=False) + "\n")
 
-    # Build prompts.json with styling
     from flow.build_prompts import build_prompts
     prefixes = acc_cfg.get("flow", {}).get("prefixes", {})
     build_prompts(str(target_path), custom_prefixes=prefixes)
@@ -174,7 +206,7 @@ Respond strictly with valid JSON containing:
     )
     cover_path.write_text(cover_text, encoding="utf-8")
 
-    # Save prompts.txt human-readable summary
+    # Save prompts.txt
     txt_path = target_path / "prompts.txt"
     lines = [f"# Scene Prompts - {target_path.name}\n"]
     for p in prompts_list:
@@ -189,8 +221,9 @@ Respond strictly with valid JSON containing:
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python -m core.scene_planner <video_dir> [account_name]")
+        print("Usage: python -m core.scene_planner <video_dir> [account_name] [auto|manual]")
         sys.exit(1)
     target = sys.argv[1]
     acc = sys.argv[2] if len(sys.argv) > 2 else None
-    plan_scenes(target, acc)
+    mode_arg = sys.argv[3] if len(sys.argv) > 3 else None
+    plan_scenes(target, acc, force_mode=mode_arg)

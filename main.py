@@ -20,7 +20,13 @@ def main():
     parser = argparse.ArgumentParser(
         description="script-to-short: Automated pipeline converting narration scripts to vertical short-form videos."
     )
-    parser.add_argument("video_dir", help="Path to video project folder containing script.txt (e.g. videos/demo)")
+    parser.add_argument("video_dir", help="Path to video project folder (e.g. videos/demo)")
+    parser.add_argument(
+        "--mode",
+        choices=["auto", "manual"],
+        default=None,
+        help="Pipeline mode: 'auto' (script.txt -> Gemini 2.5 Flash) or 'manual' (timeline_raw.json / scenes.json without LLM)"
+    )
     parser.add_argument("--account", help="Account style profile (e.g. cartoon, documentary, medical, horror)")
     parser.add_argument("--skip-voice", action="store_true", help="Skip Gemini TTS generation if voix.mp3 exists")
     parser.add_argument("--skip-flow", action="store_true", help="Skip Google Flow image generation")
@@ -30,7 +36,7 @@ def main():
 
     args = parser.parse_args()
 
-    # Dynamic imports after argument parsing
+    # Dynamic imports
     from core.account_manager import detect_account_name, save_account_marker
     from core.scene_planner import plan_scenes
     from core.timeline import build_timeline
@@ -48,9 +54,14 @@ def main():
     account_name = detect_account_name(str(target_path), args.account)
     save_account_marker(str(target_path), account_name)
 
+    # Detect mode display
+    has_timeline = (target_path / "timeline_raw.json").is_file() or (target_path / "scenes.json").is_file()
+    effective_mode = args.mode or ("manual" if has_timeline else "auto")
+
     print("==============================================================")
     print(f"SCRIPT-TO-SHORT PIPELINE | PROFILE: [{account_name.upper()}]")
     print(f"Target directory: {target_path}")
+    print(f"Operating Mode  : {'MANUAL (Zero LLM)' if effective_mode == 'manual' else 'AUTO (Gemini 2.5 Flash)'}")
     print("==============================================================")
 
     if args.render_only:
@@ -67,17 +78,11 @@ def main():
         start_server(str(target_path))
         return
 
-    script_file = target_path / "script.txt"
-    if not script_file.is_file():
-        print(f"[ERROR] Missing script file: {script_file}", file=sys.stderr)
-        print("Please write your narration text into script.txt and run again.", file=sys.stderr)
-        sys.exit(1)
-
-    # Step 1: Voice, Whisper, and Gemini scene planning
+    # Step 1: Voice, Whisper, and Scene Planning (Auto or Manual)
     print("\n--------------------------------------------------------------")
-    print("[STEP 1/3] Generating voice, transcription, and scene breakdown")
+    print("[STEP 1/3] Scene Planning & Audio Preparation")
     print("--------------------------------------------------------------")
-    plan_scenes(str(target_path), account_name)
+    plan_scenes(str(target_path), account_name, force_mode=args.mode)
 
     # Step 2: Google Flow Image Generation via Chrome CDP
     if not args.skip_flow:
