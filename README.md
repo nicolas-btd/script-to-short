@@ -83,15 +83,99 @@ python main.py videos/my_project
 python main.py videos/my_project --style "Dark cinematic history painting, dramatic Caravaggio lighting, 8k, vertical 9:16"
 ```
 
-### Mode 2: Timeline Input (Manual Mode with Zero LLM Call)
-- **Input:** `videos/project/timeline_raw.json` (or `scenes.json`)
-- **Behavior:** Bypasses LLM generation completely. You provide your own pre-written scenes, prompts, and sound effect markers. Ideal for using other LLMs (ChatGPT, Claude, local Ollama) or writing custom prompts manually.
-- **Usage:**
+### Mode 2: Timeline & Prompts Input (Manual Mode with Zero LLM Call)
+
+- **Inputs Accepted:**
+  - `prompts.jsonl` (or `prompts.json`): Visual scene descriptions and reference tags for Google Flow image generation.
+  - `timeline_raw.json` (or `scenes.json`): Audio-visual synchronization anchors, keywords, sound effects, and camera motion effects.
+- **Behavior:** Completely bypasses Gemini 2.5 Flash scene breakdown. You provide your own pre-planned scenes, prompts, and sound effect markers. Ideal for using external LLMs (Claude, ChatGPT, Ollama) or writing custom prompts by hand.
+- **Execution:**
 ```bash
 python main.py videos/my_project --mode manual
 ```
 
-> If `timeline_raw.json` or `scenes.json` is present in the video directory, Manual Mode is automatically detected.
+> If `timeline_raw.json`, `scenes.json`, `prompts.jsonl`, or `prompts.json` is present in the video directory, Manual Mode is automatically detected.
+
+#### Supported Manual Input Workflows
+
+You can organize your manual input files in one of three ways:
+
+##### Workflow A: Two-File Modular Setup (Recommended)
+Separate the timing/editing metadata from the visual prompt descriptions:
+1. `timeline_raw.json` defines cut timings, sound effects, and subtitle highlights.
+2. `prompts.jsonl` defines the visual scene descriptions and character references for Google Flow.
+
+##### Workflow B: Unified All-in-One Setup
+Provide a single `timeline_raw.json` (or `scenes.json`) containing both the editing markers and the visual `scene` description in each object. `flow/build_prompts.py` automatically extracts the scenes and generates `prompts.json`.
+
+##### Workflow C: Prompts-First Setup
+Provide only `prompts.jsonl` (or `prompts.json`) containing `id`, `anchor`, and `scene`. The pipeline automatically derives `timeline_raw.json` from the prompt file anchors.
+
+---
+
+#### Prompt File Formats and Specifications
+
+##### 1. `prompts.jsonl` (JSON Lines - One Scene Per Line)
+This is the standard format used by Google Flow automation. Each line is an independent JSON object:
+
+```jsonl
+{"id": 1, "refs": ["C1"], "s": "man", "anchor": "Sur la Lune, tes", "scene": "An astronaut boot standing firmly on the dusty grey lunar surface with planet Earth visible in the black sky."}
+{"id": 2, "refs": ["C1"], "s": "scene", "anchor": "traces de pas restent", "scene": "Extreme macro close-up of a perfectly preserved astronaut boot print in the moon dust."}
+{"id": 3, "refs": [], "s": "scene", "anchor": "intactes pendant des millions", "scene": "Vast empty lunar horizon stretching into infinite darkness, untouched footprints in the foreground."}
+{"id": 4, "refs": [], "s": "obj", "anchor": "d'années. Pourquoi ? Il", "scene": "A stylized dramatic question mark formed by shadows inside a lunar impact crater."}
+{"id": 5, "refs": [], "s": "scene", "anchor": "n'y a aucun vent.", "scene": "Completely still and silent lunar surface under the harsh contrast of direct sunlight."}
+```
+
+##### 2. `prompts.json` (Structured JSON Array)
+This is the compiled format consumed directly by `flow/flow_fast.py` and displayed in the review web interface:
+
+```json
+[
+  {
+    "id": 1,
+    "prompt": "Vivid cinematic digital illustration, intense atmosphere and lighting. An astronaut boot standing firmly on the dusty grey lunar surface. Vertical 9:16 format. Absolutely no text, words, or letters anywhere in the image.",
+    "raw_scene": "An astronaut boot standing firmly on the dusty grey lunar surface.",
+    "refs": ["C1"],
+    "anchor": "Sur la Lune, tes",
+    "keyword": "LUNE",
+    "sfx": "whoosh",
+    "fx": ["zoom_in"],
+    "type": "man"
+  }
+]
+```
+
+##### 3. `prompts.txt` (Human-Readable Prompt Sheet)
+Generated alongside `prompts.json`, this plain text file lists each prompt numbered plan by plan for easy review, verification, or copy-pasting into manual image generation tools.
+
+---
+
+#### Field Reference for Prompts and Timeline
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | integer | Sequential scene index (1, 2, 3...) matching the cut order. |
+| `anchor` | string | Trigger words from narration. Whisper matches these words to determine the exact cut timestamp. |
+| `scene` | string | Visual scene description. Automatically combined with the active visual style prefix (`style.txt` or `--style`). |
+| `prompt` | string | (Optional) Verbatim prompt override. If provided, overrides `scene` and is sent directly to Google Flow without automatic prefixing. |
+| `refs` | list of strings | Reference image identifiers (e.g. `["C1"]`) attached to the prompt in Google Flow for character consistency. |
+| `s` / `type` | string | Shot category: `"scene"` (landscape/environment), `"man"` (character), `"obj"` (object), `"duo"` (multiple characters). |
+| `keyword` | string / null | High-impact punchy word displayed in bold uppercase on screen with the active accent color. |
+| `sfx` | string / null | Audio sound effect triggered at the cut: `"whoosh"`, `"pop"`, `"tic"`, or `null`. |
+| `fx` | list of strings | Visual motion effects: `["shake"]`, `["zoom_in"]`, `["slow_motion"]`, or `[]`. |
+
+---
+
+#### How Prompts are Processed (`flow/build_prompts.py`)
+
+When Manual Mode runs, `flow/build_prompts.py` executes the following logic:
+1. Reads `prompts.jsonl`, `timeline_raw.json`, or `scenes.json`.
+2. Resolves the active visual style from `style.txt`, the `--style` CLI option, or the account profile.
+3. Automatically attaches the style prefix and vertical negative constraints (`Vertical 9:16 format. Absolutely no text, words, or writing anywhere in the image.`) to each `scene`.
+4. Writes the final `prompts.json` and human-readable `prompts.txt`.
+5. Passes the generated prompts to `flow/flow_fast.py` for parallel rendering in Google Flow.
+
+---
 
 #### Manual Timeline Format (`timeline_raw.json` or `scenes.json`)
 ```json
@@ -101,20 +185,14 @@ python main.py videos/my_project --mode manual
     "anchor": "Pourquoi les moustiques",
     "keyword": "MOUSTIQUES",
     "sfx": "whoosh",
-    "fx": ["shake"],
-    "refs": ["C1"],
-    "s": "man",
-    "scene": "A stickman looking annoyed as a tiny mosquito buzzes around him."
+    "fx": ["shake"]
   },
   {
     "id": 2,
     "anchor": "Ce n'est pas une question",
     "keyword": null,
     "sfx": "pop",
-    "fx": [],
-    "refs": ["C1"],
-    "s": "obj",
-    "scene": "A sugar cube and a tube of red blood with a cross symbol."
+    "fx": []
   }
 ]
 ```
@@ -771,9 +849,13 @@ script-to-short/
 |
 `-- videos/
     `-- demo/                 # Out-of-the-box working test project
-        |-- script.txt
-        |-- style.txt
-        `-- account.txt
+        |-- script.txt        # Narration text (Auto mode)
+        |-- style.txt         # Visual style direction
+        |-- account.txt       # Account profile name
+        |-- timeline_raw.json # (Optional) Timing, SFX, and FX markers (Manual mode)
+        |-- prompts.jsonl     # (Optional) Scene descriptions per line (Manual mode)
+        |-- prompts.json      # Compiled prompts with active visual style
+        `-- prompts.txt       # Plan-by-plan human-readable prompt sheet
 ```
 
 ---

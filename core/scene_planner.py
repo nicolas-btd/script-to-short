@@ -98,22 +98,59 @@ def plan_scenes(target_dir: str, account_name: str = None, force_mode: str = Non
     else:
         log_step("PLANNER", f"Existing transcription detected: {whisper_path.name}")
 
-    # Determine execution mode: Manual (Timeline input) vs Auto (Script input)
-    has_predefined_timeline = raw_path.is_file() or scenes_path.is_file()
+    # Determine execution mode: Manual (Timeline / Prompts input) vs Auto (Script input)
+    has_predefined_timeline = (
+        raw_path.is_file()
+        or scenes_path.is_file()
+        or (target_path / "prompts.jsonl").is_file()
+        or (target_path / "prompts.json").is_file()
+    )
     is_manual_mode = (force_mode == "manual") or (force_mode != "auto" and has_predefined_timeline)
 
     # =========================================================================
     # MODE 2: TIMELINE / MANUAL INPUT (ZERO LLM CALL)
     # =========================================================================
     if is_manual_mode:
-        log_step("PLANNER", "Mode: Timeline input (manual mode). Bypassing LLM generation.")
+        log_step("PLANNER", "Mode: Manual input (zero LLM call). Bypassing Gemini scene generation.")
 
-        if not raw_path.is_file() and scenes_path.is_file():
-            shutil.copy2(scenes_path, raw_path)
+        jsonl_path = target_path / "prompts.jsonl"
+        json_path = target_path / "prompts.json"
+
+        if not raw_path.is_file():
+            if scenes_path.is_file():
+                shutil.copy2(scenes_path, raw_path)
+            elif jsonl_path.is_file():
+                items = [json.loads(line) for line in jsonl_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+                timeline_raw = [
+                    {
+                        "id": it.get("id"),
+                        "anchor": it.get("anchor", ""),
+                        "keyword": it.get("keyword"),
+                        "sfx": it.get("sfx"),
+                        "fx": it.get("fx", [])
+                    }
+                    for it in items
+                ]
+                raw_path.write_text(json.dumps(timeline_raw, indent=2, ensure_ascii=False), encoding="utf-8")
+                log_step("PLANNER", f"Extracted {len(timeline_raw)} scene timeline anchors from prompts.jsonl")
+            elif json_path.is_file():
+                items = json.loads(json_path.read_text(encoding="utf-8"))
+                timeline_raw = [
+                    {
+                        "id": it.get("id"),
+                        "anchor": it.get("anchor", ""),
+                        "keyword": it.get("keyword"),
+                        "sfx": it.get("sfx"),
+                        "fx": it.get("fx", [])
+                    }
+                    for it in items
+                ]
+                raw_path.write_text(json.dumps(timeline_raw, indent=2, ensure_ascii=False), encoding="utf-8")
+                log_step("PLANNER", f"Extracted {len(timeline_raw)} scene timeline anchors from prompts.json")
 
         if not raw_path.is_file():
             raise FileNotFoundError(
-                f"Manual mode selected but no timeline found: create {raw_path.name} or {scenes_path.name}"
+                f"Manual mode selected but no timeline or prompts found: provide timeline_raw.json, prompts.jsonl, or prompts.json in {target_path}"
             )
 
         # Build prompts.json if not already present
