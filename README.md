@@ -7,388 +7,386 @@
 [![Playwright](https://img.shields.io/badge/Automation-Playwright-red.svg)](https://playwright.dev/)
 
 > **Automated vertical video generator (9:16) for TikTok, YouTube Shorts, and Instagram Reels from a simple text file (`script.txt`).**
-> 
-> *Générateur automatique de vidéos courtes verticales (9:16) pour TikTok, YouTube Shorts et Instagram Reels à partir d'un simple fichier texte.*
 
 ---
 
 > [!TIP]
-> ### 🤖 Guide pour ChatGPT, Claude & assistants IA (et utilisateurs débutants)
-> Si vous utilisez une IA pour vous guider ou si vous débutez complètement en informatique :
-> - **Tout est expliqué pas à pas ci-dessous**, du téléchargement jusqu'à la vidéo finale.
-> - Vous pouvez copier-coller ce README directement dans ChatGPT et lui demander :  
->   *« Guide-moi pas à pas pour installer script-to-short et créer ma première vidéo sur [Windows / Mac / Linux]. »*  
-> - L'IA disposera de 100% du contexte technique, des commandes exactes et de la résolution des erreurs.
+> ### 🤖 Guide for ChatGPT, Claude & AI Assistants (and Beginners)
+> If you are using an AI assistant for guidance or are entirely new to programming:
+> - **Everything is explained step by step below**, from downloading the code to the final rendered video.
+> - You can copy and paste this README directly into ChatGPT or Claude and ask:  
+>   *“Guide me step by step through installing script-to-short and creating my first video on [Windows / macOS / Linux].”*  
+> - The AI will have 100% of the technical context, exact commands, and troubleshooting instructions.
 
 ---
 
-## Sommaire / Table of Contents
+## Table of Contents
 
-- [1. En bref : Qu'est-ce que fait ce projet ?](#1-en-bref--quest-ce-que-fait-ce-projet-)
-- [2. Guide d'installation complet (Pas-à-pas pour débutants)](#2-guide-dinstallation-complet-pas-à-pas-pour-débutants)
-  - [Étape 1 : Télécharger le projet](#étape-1--télécharger-le-projet)
-  - [Étape 2 : Installer Python (Attention au piège Windows !)](#étape-2--installer-python-attention-au-piège-windows-)
-  - [Étape 3 : Installer FFmpeg](#étape-3--installer-ffmpeg)
-  - [Étape 4 : Obtenir sa clé API Google Gemini gratuite](#étape-4--obtenir-sa-clé-api-google-gemini-gratuite)
-  - [Étape 5 : Configurer le fichier .env](#étape-5--configurer-le-fichier-env)
-  - [Étape 6 : Installer les dépendances du projet](#étape-6--installer-les-dépendances-du-projet)
-- [3. Créer sa première vidéo en 3 étapes](#3-créer-sa-première-vidéo-en-3-étapes)
-  - [Étape 1 : Écrire votre script](#étape-1--écrire-votre-script)
-  - [Étape 2 : Lancer Chrome sur Google Flow](#étape-2--lancer-chrome-sur-google-flow)
-  - [Étape 3 : Lancer la génération](#étape-3--lancer-la-génération)
-  - [Étape 4 : Choisir les images sur la page web](#étape-4--choisir-les-images-sur-la-page-web)
-- [4. Fonctionnement de l'Interface Web de Sélection](#4-fonctionnement-de-linterface-web-de-sélection)
-  - [Détection automatique du nombre d'images (x1, x2, x3, x4)](#détection-automatique-du-nombre-dimages-x1-x2-x3-x4)
-  - [Raccourcis clavier & interaction](#raccourcis-clavier--interaction)
-  - [Régénération ciblée (Touche X)](#régénération-ciblée-touche-x)
-- [5. Architecture et Pipeline Technique](#5-architecture-et-pipeline-technique)
-- [6. Les Deux Modes de Fonctionnement](#6-les-deux-modes-de-fonctionnement)
-  - [Mode 1 : Automatique (Script + Style avec Gemini)](#mode-1--automatique-script--style-avec-gemini)
-  - [Mode 2 : Manuel (Prompts & Timeline sur-mesure, zéro appel LLM)](#mode-2--manuel-prompts--timeline-sur-mesure-zéro-appel-llm)
-- [7. Dictionnaire de tous les fichiers d'un projet vidéo](#7-dictionnaire-de-tous-les-fichiers-dun-projet-vidéo)
-- [8. Personnalisation & Configuration](#8-personnalisation--configuration)
-  - [Priorité des réglages](#priorité-des-réglages)
-  - [Fichier config.json complet](#fichier-configjson-complet)
-  - [Styles visuels & Direction artistique (style.txt)](#styles-visuels--direction-artistique-styletxt)
-  - [Personnalisation des sous-titres](#personnalisation-des-sous-titres)
-  - [Effets de caméra & Zooms Ken Burns](#effets-de-caméra--zooms-ken-burns)
-  - [Bruitages sonores (SFX)](#bruitages-sonores-sfx)
-  - [Voix IA Gemini & Direction d'acteur](#voix-ia-gemini--direction-dacteur)
-  - [Utiliser sa propre voix ou un audio externe](#utiliser-sa-propre-voix-ou-un-audio-externe)
-  - [Profils de chaîne multi-comptes (accounts/)](#profils-de-chaîne-multi-comptes-accounts)
-- [9. Recettes & Styles Prêts à l'Emploi](#9-recettes--styles-prêts-à-lemploi)
-- [10. Référence Complète des Commandes CLI](#10-référence-complète-des-commandes-cli)
-- [11. FAQ & Résolution des Problèmes (Dépannage)](#11-faq--résolution-des-problèmes-dépannage)
-- [12. Structure du Dépôt](#12-structure-du-dépôt)
-- [13. Licence](#13-licence)
-- [14. Avertissement & Usage Légal (Disclaimer)](#14-avertissement--usage-légal-disclaimer)
-
----
-
-## 1. En bref : Qu'est-ce que fait ce projet ?
-
-Créer des vidéos courtes percutantes pour TikTok ou YouTube demande habituellement des heures de travail sur plusieurs logiciels :
-1. Enregistrer une voix off et la nettoyer.
-2. Découper manuellement le texte toutes les 1 à 2 secondes pour garder l'attention du spectateur.
-3. Rédiger des prompts et générer des dizaines d'images cohérentes.
-4. Synchroniser les sous-titres mot par mot avec un surlignage dynamique en couleur.
-5. Ajouter des animations de zoom (effet Ken Burns), des secousses d'impact et des bruitages (whoosh, pop).
-6. Monter et exporter la vidéo finale au format vertical 9:16 (1080x1920) à 60 images par seconde.
-
-**`script-to-short` automatise 100% de cette chaîne de production.**  
-Vous écrivez simplement votre texte dans un fichier `script.txt`, et le programme s'occupe de tout le reste.
+- [1. Overview: What does this project do?](#1-overview-what-does-this-project-do)
+- [2. Step-by-Step Installation Guide (Beginner Friendly)](#2-step-by-step-installation-guide-beginner-friendly)
+  - [Step 1: Download the Project](#step-1-download-the-project)
+  - [Step 2: Install Python (Important Windows Warning!)](#step-2-install-python-important-windows-warning)
+  - [Step 3: Install FFmpeg](#step-3-install-ffmpeg)
+  - [Step 4: Get Your Free Google Gemini API Key](#step-4-get-your-free-google-gemini-api-key)
+  - [Step 5: Configure the .env File](#step-5-configure-the-env-file)
+  - [Step 6: Install Project Dependencies](#step-6-install-project-dependencies)
+- [3. Creating Your First Video in 4 Steps](#3-creating-your-first-video-in-4-steps)
+  - [Step 1: Write Your Script](#step-1-write-your-script)
+  - [Step 2: Launch Chrome on Google Flow](#step-2-launch-chrome-on-google-flow)
+  - [Step 3: Run the Generation Pipeline](#step-3-run-the-generation-pipeline)
+  - [Step 4: Select Images on the Web Interface](#step-4-select-images-on-the-web-interface)
+- [4. Web Review Interface Guide](#4-web-review-interface-guide)
+  - [Automatic Variant Count Detection (x1, x2, x3, x4)](#automatic-variant-count-detection-x1-x2-x3-x4)
+  - [Keyboard Shortcuts & Interactions](#keyboard-shortcuts--interactions)
+  - [Targeted Regeneration (X Key)](#targeted-regeneration-x-key)
+- [5. Architecture & Technical Pipeline](#5-architecture--technical-pipeline)
+- [6. Two Operating Modes](#6-two-operating-modes)
+  - [Mode 1: Automatic (Script + Style via Gemini)](#mode-1-automatic-script--style-via-gemini)
+  - [Mode 2: Manual (Custom Prompts & Timeline, Zero LLM Calls)](#mode-2-manual-custom-prompts--timeline-zero-llm-calls)
+- [7. Project File Dictionary](#7-project-file-dictionary)
+- [8. Customization & Configuration](#8-customization--configuration)
+  - [Configuration Priority](#configuration-priority)
+  - [Complete config.json Schema](#complete-configjson-schema)
+  - [Visual Styles & Art Direction (style.txt)](#visual-styles--art-direction-styletxt)
+  - [Subtitle Customization](#subtitle-customization)
+  - [Camera Effects & Ken Burns Zooms](#camera-effects--ken-burns-zooms)
+  - [Sound Effects (SFX)](#sound-effects-sfx)
+  - [Gemini AI Voices & Actor Direction](#gemini-ai-voices--actor-direction)
+  - [Using Your Own Voice or External Audio](#using-your-own-voice-or-external-audio)
+  - [Multi-Channel Account Profiles (accounts/)](#multi-channel-account-profiles-accounts)
+- [9. Ready-to-Use Recipes & Styles](#9-ready-to-use-recipes--styles)
+- [10. Complete CLI Command Reference](#10-complete-cli-command-reference)
+- [11. FAQ & Troubleshooting](#11-faq--troubleshooting)
+- [12. Repository Structure](#12-repository-structure)
+- [13. License](#13-license)
+- [14. Disclaimer & Legal Notice](#14-disclaimer--legal-notice)
 
 ---
 
-## 2. Guide d'installation complet (Pas-à-pas pour débutants)
+## 1. Overview: What does this project do?
 
-Aucune connaissance préalable en programmation n'est requise. Suivez simplement ces 6 étapes.
+Creating engaging vertical short-form videos for TikTok, YouTube Shorts, or Instagram Reels usually requires hours of tedious work across multiple software tools:
+1. Recording and cleaning up a voiceover.
+2. Manually pacing and cutting the script into 1-to-2 second clips to maintain viewer retention.
+3. Drafting prompts and generating dozens of visually coherent images.
+4. Aligning word-by-word subtitles with dynamic colored karaoke highlighting.
+5. Adding Ken Burns zoom animations, camera shake impacts, and sound effects (whoosh, pop).
+6. Assembling and exporting the final 9:16 vertical video (1080x1920) at 60 fps.
 
-### Étape 1 : Télécharger le projet
+**`script-to-short` automates 100% of this production workflow.**  
+Simply write your text in a `script.txt` file, run the command, and let the pipeline handle the rest.
 
-Deux méthodes simples :
-- **Option A (Sans Git)** : Cliquez sur le bouton vert **`<> Code`** en haut de la page GitHub, puis sur **`Download ZIP`**. Décompressez ensuite le dossier ZIP sur votre ordinateur (par exemple dans vos *Documents*).
-- **Option B (Avec Git)** : Ouvrez votre terminal et tapez :
+---
+
+## 2. Step-by-Step Installation Guide (Beginner Friendly)
+
+No prior programming experience is required. Follow these 6 steps:
+
+### Step 1: Download the Project
+
+Two simple options:
+- **Option A (Without Git)**: Click the green **`<> Code`** button at the top of the GitHub page, then click **`Download ZIP`**. Extract the archive anywhere on your computer (e.g. into your *Documents* folder).
+- **Option B (With Git)**: Open your terminal and run:
   ```bash
-  git clone https://github.com/votre-nom/script-to-short.git
+  git clone https://github.com/nicolas-btd/script-to-short.git
   cd script-to-short
   ```
 
 ---
 
-### Étape 2 : Installer Python (Attention au piège Windows !)
+### Step 2: Install Python (Important Windows Warning!)
 
-Ce projet nécessite **Python 3.10 ou une version supérieure**.
+This project requires **Python 3.10 or higher**.
 
-- **Sur Windows :**
-  1. Téléchargez Python sur le site officiel : [python.org/downloads](https://www.python.org/downloads/)
-  2. Lancez l'installateur.
+- **On Windows:**
+  1. Download Python from the official site: [python.org/downloads](https://www.python.org/downloads/)
+  2. Launch the installer.
   3. > [!CRITICAL]
-     > **PIÈGE IMPORTANT :** Cochez impérativement la case **`Add python.exe to PATH`** tout en bas de la première fenêtre d'installation avant de cliquer sur *Install Now*. Si vous ne cochez pas cette case, votre terminal ne reconnaîtra pas la commande `python`.
-- **Sur macOS :**
-  Ouvrez l'application *Terminal* et tapez (avec [Homebrew](https://brew.sh/)) :
+     > **CRITICAL STEP:** Check the box **`Add python.exe to PATH`** at the bottom of the very first setup screen before clicking *Install Now*. If you miss this, your terminal will not recognize the `python` command.
+- **On macOS:**
+  Open *Terminal* and run (using [Homebrew](https://brew.sh/)):
   ```bash
   brew install python
   ```
-- **Sur Linux (Ubuntu/Debian) :**
+- **On Linux (Ubuntu/Debian):**
   ```bash
   sudo apt update && sudo apt install -y python3 python3-pip python3-venv
   ```
 
 ---
 
-### Étape 3 : Installer FFmpeg
+### Step 3: Install FFmpeg
 
-FFmpeg est le moteur qui mixe le son, anime les images et encode la vidéo finale.
+FFmpeg is the multimedia engine that handles audio mixing, image animation, and final video encoding.
 
-- **Sur Windows :**
-  Ouvrez *PowerShell* ou l'*Invite de commandes* et tapez :
+- **On Windows:**
+  Open *PowerShell* or *Command Prompt* and run:
   ```powershell
   winget install Gyan.FFmpeg
   ```
-  *(Redémarrez votre terminal après l'installation pour que FFmpeg soit pris en compte).*
-- **Sur macOS :**
+  *(Restart your terminal after installation so FFmpeg is recognized).*
+- **On macOS:**
   ```bash
   brew install ffmpeg
   ```
-- **Sur Linux (Ubuntu/Debian) :**
+- **On Linux (Ubuntu/Debian):**
   ```bash
   sudo apt install -y ffmpeg
   ```
 
-*Vérification : tapez `ffmpeg -version` dans votre terminal. Si un texte décrivant la version s'affiche, c'est réussi !*
+*Verification: type `ffmpeg -version` in your terminal. If version details appear, installation succeeded!*
 
 ---
 
-### Étape 4 : Obtenir sa clé API Google Gemini gratuite
+### Step 4: Get Your Free Google Gemini API Key
 
-La clé API Gemini permet de générer la voix off ultra-réaliste et de découper le script en scènes. C'est **100% gratuit** :
+The Gemini API generates broadcast-quality AI voiceovers and plans scenes automatically. It is **100% free**:
 
-1. Rendez-vous sur **[Google AI Studio](https://aistudio.google.com/)**.
-2. Connectez-vous avec n'importe quel compte Google.
-3. Cliquez sur le bouton bleu **`Get API key`** (dans la colonne de gauche).
-4. Cliquez sur **`Create API key`**, puis copiez la clé générée (elle commence généralement par `AIzaSy...`).
+1. Go to **[Google AI Studio](https://aistudio.google.com/)**.
+2. Sign in with any Google account.
+3. Click the blue **`Get API key`** button in the left sidebar.
+4. Click **`Create API key`**, then copy the generated key (starts with `AIzaSy...`).
 
 ---
 
-### Étape 5 : Configurer le fichier .env
+### Step 5: Configure the .env File
 
-Dans le dossier du projet :
-1. Trouvez le fichier nommé `.env.example`.
-2. Dupliquez-le ou renommez-le en **`.env`** (avec un point devant, sans `.example`).
-3. Ouvrez-le avec n'importe quel éditeur de texte (Bloc-notes, VS Code, TextEdit).
-4. Remplacez le texte factice par votre vraie clé Gemini :
+In the project folder:
+1. Locate the file named `.env.example`.
+2. Duplicate or rename it to **`.env`** (with a leading dot, without `.example`).
+3. Open it with any text editor (Notepad, VS Code, TextEdit).
+4. Replace the placeholder with your actual Gemini API key:
    ```env
-   GEMINI_API_KEY="AIzaSyVotreCleSecreteIci"
+   GEMINI_API_KEY="AIzaSyYourSecretKeyHere"
    ```
-5. Enregistrez le fichier.
+5. Save the file.
 
 ---
 
-### Étape 6 : Installer les dépendances du projet
+### Step 6: Install Project Dependencies
 
-Ouvrez un terminal dans le dossier du projet :
+Open your terminal in the project directory:
 
-1. **Créer et activer un environnement virtuel (recommandé) :**
-   - **Sur macOS / Linux :**
+1. **Create and activate a virtual environment (recommended):**
+   - **On macOS / Linux:**
      ```bash
      python3 -m venv .venv
      source .venv/bin/activate
      ```
-   - **Sur Windows :**
+   - **On Windows:**
      ```powershell
      python -m venv .venv
      .venv\Scripts\activate
      ```
-2. **Installer les modules Python :**
+2. **Install Python packages:**
    ```bash
    pip install -r requirements.txt
    ```
-3. **Installer les navigateurs pour l'automatisation :**
+3. **Install automation browser binaries:**
    ```bash
    playwright install chromium
    ```
 
-Tout est installé ! Vous êtes prêt à créer votre première vidéo.
+Setup is complete! You are ready to create your first video.
 
 ---
 
-## 3. Créer sa première vidéo en 3 étapes
+## 3. Creating Your First Video in 4 Steps
 
-### Étape 1 : Écrire votre script
+### Step 1: Write Your Script
 
-Créez un nouveau dossier pour votre vidéo dans `videos/` (par exemple `videos/ma_video/`).  
-À l'intérieur, créez un fichier texte simple nommé **`script.txt`** et collez-y votre texte :
+Create a new folder for your project inside `videos/` (e.g. `videos/my_video/`).  
+Inside, create a plain text file named **`script.txt`** and paste your narration:
 
 ```text
-Saviez-vous que votre cerveau consomme 20% de toute votre énergie quotidienne ? 
-Pourtant, il ne représente que 2% de votre poids total. 
-Quand vous réfléchissez intensément, il brûle du glucose à toute vitesse. 
-Alors la prochaine fois que vous êtes fatigué après avoir étudié, c'est totalement normal !
+Did you know your brain consumes 20% of your total daily energy?
+Yet, it only accounts for about 2% of your entire body weight.
+When you think deeply, it burns through glucose at lightning speed.
+So next time you feel exhausted after intense studying, it is completely normal!
 ```
 
-*(Optionnel)* Vous pouvez ajouter un fichier **`style.txt`** dans le même dossier pour définir le style graphique que vous souhaitez (ex: *« Clean 2D stickman cartoon, minimalist, solid colors »* ou *« Dark cinematic historical painting, dramatic lighting »*).
+*(Optional)* Add a **`style.txt`** file in the same folder to specify the visual art direction (e.g. *« Clean 2D stickman cartoon, minimalist, solid colors »* or *« Dark cinematic historical painting, dramatic lighting »*).
 
 ---
 
-### Étape 2 : Lancer Chrome sur Google Flow
+### Step 2: Launch Chrome on Google Flow
 
-Google Flow (`flow.google.com`) est l'outil de génération d'images de Google. Pour éviter tout problème de mot de passe ou de blocage, le projet pilote votre propre session Google Chrome :
+Google Flow (`flow.google.com`) is Google's web-based image generation studio. To avoid bot blocks or authentication issues, the pipeline attaches directly to your local Chrome session:
 
-- **Sur macOS / Linux :**
+- **On macOS / Linux:**
   ```bash
   ./flow/start_chrome.sh
   ```
-- **Sur Windows :**
-  Double-cliquez sur `flow\start_chrome.bat` ou lancez :
+- **On Windows:**
+  Double-click `flow\start_chrome.bat` or run:
   ```cmd
   flow\start_chrome.bat
   ```
 
-Une fenêtre Google Chrome s'ouvre.  
-👉 **Dans cette fenêtre Chrome :**
-1. Allez sur **[flow.google.com](https://flow.google.com/)**.
-2. Connectez-vous avec votre compte Google.
-3. Ouvrez le projet dans lequel vous souhaitez générer les images (ou créez-en un nouveau).
-4. **Laissez cette fenêtre Chrome ouverte en arrière-plan.**
+A Google Chrome window opens.  
+👉 **Inside this Chrome window:**
+1. Navigate to **[flow.google.com](https://flow.google.com/)**.
+2. Sign in with your Google account.
+3. Open the project where you want your images generated (or create a new one).
+4. **Leave this Chrome window open in the background.**
 
 ---
 
-### Étape 3 : Lancer la génération
+### Step 3: Run the Generation Pipeline
 
-Dans votre terminal (toujours dans le dossier `script-to-short`) :
+In your terminal (inside the `script-to-short` directory):
 
 ```bash
-python main.py videos/ma_video
+python main.py videos/my_video
 ```
 
-Le programme va automatiquement :
-1. 🎙️ Générer la voix off avec Gemini TTS au format audio broadcast (-14 LUFS).
-2. ⏱️ Synchroniser chaque mot avec Whisper pour les sous-titres.
-3. 🎬 Découper le script en scènes rapides de 1 à 2 secondes et rédiger les prompts d'images adaptés.
-4. 🎨 Envoyer les prompts à Google Flow via Chrome et télécharger toutes les variantes générées.
-5. 🌐 Ouvrir automatiquement votre navigateur sur l'interface de sélection : `http://localhost:8765/`.
+The script will automatically:
+1. 🎙️ Synthesize the narration with Gemini TTS normalized to broadcast loudness (-14 LUFS).
+2. ⏱️ Extract precise word-level timestamps using Faster-Whisper.
+3. 🎬 Segment the script into rapid 1-to-2 second clips and draft visual prompts.
+4. 🎨 Transmit prompts to Google Flow via Chrome CDP and download all candidate variants.
+5. 🌐 Automatically open your browser to the local review interface: `http://localhost:8765/`.
 
 ---
 
-### Étape 4 : Choisir les images sur la page web
+### Step 4: Select Images on the Web Interface
 
-Une interface web élégante s'ouvre sur `http://localhost:8765/` :
+A review interface opens at `http://localhost:8765/`:
 
-1. Pour chaque plan, vous voyez le texte prononcé et les variantes d'images proposées côte à côte.
-2. **Appuyez sur `1`, `2`, `3` ou `4` sur votre clavier** (ou cliquez sur l'image) pour sélectionner celle que vous préférez.
-3. Si aucune image ne vous plaît pour un plan, appuyez sur la touche **`X`** (le plan passe en rouge « À refaire »).
-4. Tout en haut, cliquez sur le bouton vert **`✅ Valider et lancer le montage`**.
-5. Une barre de progression violette affiche en direct le calage et le rendu de la vidéo finale.
-6. Dès que c'est terminé, cliquez sur **`▶️ Ouvrir la vidéo finale`** : votre vidéo **`video_finale.mp4`** s'ouvre, prête à être partagée !
-
----
-
-## 4. Fonctionnement de l'Interface Web de Sélection
-
-L'interface web (`flow/choisir_web.py`) a été spécialement conçue pour être ultra-rapide et intuitive.
-
-### Détection automatique du nombre d'images (x1, x2, x3, x4)
-
-Google Flow permet de générer 1, 2, 3 ou 4 variantes par prompt (via le bouton de réglages `🍌 Nano Banana ... crop_9_16 x4`).
-- **Détection automatique dans Flow** : Le moteur lit directement le réglage actif sur la page de Flow (`x1`, `x2`, `x3` ou `x4`).
-- **Affichage sur-mesure sur la page web** : La page web s'adapte dynamiquement pour chaque plan. Si un plan a 4 variantes, 4 colonnes s'affichent. S'il en a 2 ou 3, elle affiche exactement le bon nombre.
-
-### Raccourcis clavier & interaction
-
-Vous pouvez faire tout le tri sans toucher à la souris :
-- Touches **`1`**, **`2`**, **`3`**, **`4`** (pavé numérique ou chiffres standard) : sélectionne la variante et fait défiler automatiquement jusqu'au plan suivant.
-- Touches AZERTY **`&`**, **`é`**, **`"`**, **`'`** : fonctionnent également de la même manière.
-- Touche **`X`** : bascule le plan en mode « À refaire ».
-- Clic direct sur n'importe quelle vignette.
-
-### Régénération ciblée (Touche X)
-
-Si vous marquez un ou plusieurs plans avec la touche `X` et que vous cliquez sur *Valider* :
-1. Le système ne relance que les scènes marquées `X`.
-2. Il vous génère de nouvelles propositions sans toucher aux scènes que vous aviez déjà validées.
+1. For each scene, view the spoken audio clip alongside candidate image variants.
+2. **Press `1`, `2`, `3`, or `4` on your keyboard** (or click any thumbnail) to pick your preferred image.
+3. If no image suits a scene, press **`X`** to mark it red ("Redo").
+4. At the top, click **`✅ Validate and render video`**.
+5. A live progress bar tracks timeline compilation and FFmpeg rendering.
+6. Once finished, click **`▶️ Open final video`**: your completed **`video_finale.mp4`** opens, ready to post!
 
 ---
 
-## 5. Architecture et Pipeline Technique
+## 4. Web Review Interface Guide
 
-Le pipeline complet fonctionne comme une suite d'ateliers automatisés :
+The web selector (`flow/choisir_web.py`) is optimized for speed and keyboard navigation.
+
+### Automatic Variant Count Detection (x1, x2, x3, x4)
+
+Google Flow supports generating 1, 2, 3, or 4 variants per prompt (configured via the `🍌 Nano Banana ... crop_9_16 x4` settings menu).
+- **Auto-detection in Flow**: The engine reads the active UI setting directly from the Flow page (`x1`, `x2`, `x3`, or `x4`).
+- **Dynamic Web Display**: The web interface adapts layout columns on a per-scene basis to match available variants.
+
+### Keyboard Shortcuts & Interactions
+
+Review an entire video without touching your mouse:
+- Keys **`1`**, **`2`**, **`3`**, **`4`** (numpad or top-row): Select variant and auto-scroll to the next scene.
+- AZERTY keys **`&`**, **`é`**, **`"`**, **`'`**: Mapped to options 1 through 4.
+- Key **`X`**: Toggles scene into "Redo" mode.
+- Direct click on any thumbnail.
+
+### Targeted Regeneration (X Key)
+
+If one or more scenes are marked with `X` and you click *Validate*:
+1. The engine re-triggers only those specific scenes in Google Flow.
+2. It fetches fresh candidates while preserving all previously selected images.
+
+---
+
+## 5. Architecture & Technical Pipeline
+
+The pipeline operates as a modular, automated factory:
 
 ```text
-[ script.txt ] (Texte de votre narration)
+[ script.txt ] (Raw narration script)
       │
       ▼
 1. core/voice.py ──────────► Gemini TTS ──────────► [ voix.mp3 ] (-14 LUFS)
       │
       ▼
-2. core/transcribe.py ─────► Faster-Whisper ──────► [ whisper_words.json ] (Timestamps mot à mot)
+2. core/transcribe.py ─────► Faster-Whisper ──────► [ whisper_words.json ] (Word-level timestamps)
       │
       ▼
-3. core/scene_planner.py ──► Gemini 2.5 Flash ────► [ timeline_raw.json ] (Découpage des scènes)
-      │                                             [ prompts.json ]      (Prompts visuels 9:16)
+3. core/scene_planner.py ──► Gemini 2.5 Flash ────► [ timeline_raw.json ] (Scene segmentation)
+      │                                             [ prompts.json ]      (9:16 visual prompts)
       ▼
-4. flow/flow_fast.py ──────► Google Flow (CDP) ───► [ images_candidates/ ] (1 à 4 variantes par plan)
+4. flow/flow_fast.py ──────► Google Flow (CDP) ───► [ images_candidates/ ] (1-4 variants per cut)
       │
       ▼
-5. flow/choisir_web.py ────► Interface Web ───────► [ 01.jpg, 02.jpg... ] (Images retenues)
+5. flow/choisir_web.py ────► Web Selector UI ─────► [ 01.jpg, 02.jpg... ] (Selected frames)
       │
       ▼
-6. core/renderer.py ───────► Pillow + FFmpeg ─────► [ video_finale.mp4 ] (Vidéo 60 fps avec zooms,
-                                                                          sous-titres & bruitages)
+6. core/renderer.py ───────► Pillow + FFmpeg ─────► [ video_finale.mp4 ] (60 fps video with zooms,
+                                                                          subtitles & sound effects)
 ```
 
 ---
 
-## 6. Les Deux Modes de Fonctionnement
+## 6. Two Operating Modes
 
-### Mode 1 : Automatique (Script + Style avec Gemini)
+### Mode 1: Automatic (Script + Style via Gemini)
 
-C'est le mode par défaut pour aller vite.
-- **Entrées requises :** Uniquement `videos/<mon_projet>/script.txt` (et optionnellement `style.txt`).
-- **Rôle de l'IA :** Gemini 2.5 Flash analyse le texte, le découpe en segments dynamiques de 1 à 2 secondes, rédige les descriptions visuelles adaptées à votre style artistique, place les effets de zoom, les secousses d'impact (`shake`), les mots-clés en majuscules et les bruitages sonores (`sfx`).
-- **Commande :**
+The default, fastest workflow.
+- **Required Inputs:** Only `videos/<project>/script.txt` (and optionally `style.txt`).
+- **AI Role:** Gemini 2.5 Flash analyzes text, splits it into dynamic 1-to-2 second clips, tailors image prompts to your art direction, and places zoom modes, camera shakes, uppercase keywords, and SFX cues.
+- **Command:**
   ```bash
-  python main.py videos/mon_projet
+  python main.py videos/my_video
   ```
 
-### Mode 2 : Manuel (Prompts & Timeline sur-mesure, zéro appel LLM)
+### Mode 2: Manual (Custom Prompts & Timeline, Zero LLM Calls)
 
-Idéal si vous avez préparé vos propres prompts avec ChatGPT, Claude, DeepSeek ou à la main.
-- **Entrées reconnues :**
-  - `prompts.jsonl` ou `prompts.json` : la liste exacte de vos prompts d'images avec leurs références de personnages.
-  - `timeline_raw.json` ou `scenes.json` : les repères de synchronisation audio-texte (`anchor`), mots-clés et bruitages.
-- **Comportement :** Dès que ces fichiers sont présents, le découpage par Gemini est automatiquement sauté.
-- **Commande :**
+Ideal if you generate prompts externally (ChatGPT, Claude, DeepSeek, or manual curation).
+- **Recognized Inputs:**
+  - `prompts.jsonl` or `prompts.json`: Exact list of image prompts with character/object references.
+  - `timeline_raw.json` or `scenes.json`: Synchronization audio anchors (`anchor`), keyword overlays, and SFX markers.
+- **Behavior:** When these files exist, the Gemini planning step is skipped entirely.
+- **Command:**
   ```bash
-  python main.py videos/mon_projet --mode manual
+  python main.py videos/my_video --mode manual
   ```
 
 ---
 
-## 7. Dictionnaire de tous les fichiers d'un projet vidéo
+## 7. Project File Dictionary
 
-Lors de la production d'une vidéo dans `videos/mon_projet/`, voici à quoi sert chaque fichier :
+Inside any project folder `videos/my_video/`, files serve specific roles:
 
-| Fichier | Obligatoire ? | Rôle et description |
+| File | Required? | Role & Description |
 | :--- | :---: | :--- |
-| `script.txt` | **Oui** (en mode auto) | Le texte brut de la narration que la voix IA va lire. |
-| `style.txt` | Non | Description du style artistique souhaité (ex: cartoon 2D, rendu 3D, peinture à l'huile). |
-| `account.txt` | Non | Nom du profil de chaîne à utiliser (`cartoon`, `documentary`, `medical`, `horror`). |
-| `cover.txt` | Non | Idée de titre et de miniature générée pour les réseaux sociaux. |
-| `desc.txt` | Non | Description et hashtags générés pour TikTok / YouTube Shorts / Instagram. |
-| `voix.mp3` | Auto-généré | Fichier audio de la voix off, normalisé au standard -14 LUFS. |
-| `whisper_words.json` | Auto-généré | Empreinte temporelle précise de chaque mot prononcé (pour les sous-titres). |
-| `timeline_raw.json` | Auto-généré | Découpage des plans avec mots de calage (`anchor`), bruitages (`sfx`) et secousses (`fx`). |
-| `prompts.json` | Auto-généré | Liste complète des prompts envoyés à Google Flow. |
-| `prompts.txt` | Auto-généré | Feuille de prompts lisible par un humain (pratique pour copier-coller ailleurs). |
-| `images_candidates/` | Auto-généré | Dossier contenant toutes les variantes d'images téléchargées depuis Flow (`1_1.jpg`, `1_2.jpg`, etc.). |
-| `choix_images.json` | Auto-généré | Fichier de sauvegarde de vos choix sur la page web. |
-| `01.jpg`, `02.jpg`... | Auto-généré | Les images finales retenues, renommées dans l'ordre chronologique de la vidéo. |
-| `timeline_finale.csv` | Auto-généré | Tableau final des durées exactes de chaque plan en secondes. |
-| `video_finale.mp4` | **RÉSULTAT** | **Votre vidéo finale complète à 60 fps**, avec sous-titres animés, zooms et audio mixé ! |
+| `script.txt` | **Yes** (Auto mode) | Plain text narration read by AI voiceover. |
+| `style.txt` | No | Art direction description (e.g. 2D cartoon, 3D render, oil painting). |
+| `account.txt` | No | Channel profile preset name (`cartoon`, `documentary`, `medical`, `horror`). |
+| `cover.txt` | No | Suggested title and thumbnail concept for social media. |
+| `desc.txt` | No | Generated video description and hashtags for TikTok / Shorts / Reels. |
+| `voix.mp3` | Auto-generated | Master voiceover audio file, normalized to broadcast -14 LUFS. |
+| `whisper_words.json` | Auto-generated | Millisecond-accurate word timestamps for subtitle rendering. |
+| `timeline_raw.json` | Auto-generated | Scene cuts with audio sync anchors (`anchor`), SFX cues, and shake FX. |
+| `prompts.json` | Auto-generated | Complete compiled prompt payload dispatched to Google Flow. |
+| `prompts.txt` | Auto-generated | Human-readable prompt sheet (convenient for copy-pasting elsewhere). |
+| `images_candidates/` | Auto-generated | Folder containing all downloaded image variants (`1_1.jpg`, `1_2.jpg`, etc.). |
+| `choix_images.json` | Auto-generated | State file recording user selections from the web UI. |
+| `01.jpg`, `02.jpg`... | Auto-generated | Final selected images, renamed in chronological playback order. |
+| `timeline_finale.csv` | Auto-generated | Calculated timeline with exact durations per scene in seconds. |
+| `video_finale.mp4` | **OUTPUT** | **Final 60 fps vertical video** with animated subtitles, zooms, and mixed audio! |
 
 ---
 
-## 8. Personnalisation & Configuration
+## 8. Customization & Configuration
 
-### Priorité des réglages
+### Configuration Priority
 
-Les paramètres de style, sous-titres, voix et zoom sont résolus selon cet ordre de priorité (le niveau supérieur écrase le niveau inférieur) :
+Settings for subtitles, visual FX, voice, and pacing resolve through a 4-tier hierarchy (higher tiers override lower tiers):
 
-1. **Options de la ligne de commande** (`--sub-size 80`, `--voice-name Charon`, etc.)
-2. **Configuration du projet** (`videos/<projet>/config.json`)
-3. **Profil de compte** (`accounts/<profil>/config.json`)
-4. **Valeurs par défaut du moteur**
+1. **CLI Flags** (`--sub-size 80`, `--voice-name Charon`, etc.)
+2. **Project-level config** (`videos/<project>/config.json`)
+3. **Account profile config** (`accounts/<profile>/config.json`)
+4. **Engine defaults**
 
 ---
 
-### Fichier config.json complet
+### Complete config.json Schema
 
-Vous pouvez placer un fichier `config.json` dans votre dossier vidéo pour personnaliser le rendu :
+Place a `config.json` inside your video project folder to customize styling:
 
 ```json
 {
-  "name": "mon_style",
+  "name": "my_style",
   "subtitles": {
     "enabled": true,
     "font": "Arial Rounded Bold",
@@ -427,127 +425,126 @@ Vous pouvez placer un fichier `config.json` dans votre dossier vidéo pour perso
 
 ---
 
-### Styles visuels & Direction artistique (`style.txt`)
+### Visual Styles & Art Direction (`style.txt`)
 
-Pour garantir que tous les plans d'une vidéo aient le même univers graphique, écrivez votre style dans `videos/<mon_projet>/style.txt` ou passez-le avec `--style`.
+To ensure every scene adheres to a uniform visual identity, define your prompt in `videos/<project>/style.txt` or supply it via `--style`.
 
-Exemples de styles testés et approuvés :
+Battle-tested style presets:
 
-#### 1. Cartoon Stickman 2D (Idéal pour vidéos explicatives virales)
+#### 1. 2D Stickman Cartoon (Viral explainer style)
 ```text
 Clean digital cartoon illustration in a simple stickman style. The stickman has a large perfectly round white head with a thick black outline, expressive eyes (white circles with black pupils), thin curved eyebrows and a small simple mouth. His body, arms and legs are very thin black lines, with no hands or feet drawn. Flat color background filling the whole frame, no paper texture. Objects have flat colors with thick black outlines and no shading. Vertical 9:16 format. Absolutely no text or writing anywhere in the image.
 ```
 
-#### 2. Documentaire Historique & Cinématique
+#### 2. Cinematic Historical Documentary
 ```text
 Vivid cinematic digital illustration, rich atmospheric chiaroscuro lighting, detailed historical storytelling scene, dramatic depth of field, vertical 9:16 format. Absolutely no text, words, or writing anywhere in the image.
 ```
 
-#### 3. Rendu 3D Médical & Scientifique
+#### 3. 3D Medical & Scientific Render
 ```text
 Stylized 3D animation render, clean medical and biology explainer aesthetic, smooth matte materials, simple organic shapes, soft global illumination, vertical 9:16 composition. Absolutely no text or writing anywhere in the image.
 ```
 
-#### 4. Anime / Manga Cyberpunk
+#### 4. Cyberpunk Anime / Manga
 ```text
 Modern cyberpunk anime digital illustration, vibrant neon lighting, high contrast, wet reflective pavement, detailed character design, Studio Trigger inspired dynamic framing, vertical 9:16 portrait composition. Absolutely no text or writing anywhere in the image.
 ```
 
 ---
 
-### Personnalisation des sous-titres
+### Subtitle Customization
 
-Les sous-titres sont affichés mot par mot en synchronisation parfaite avec la voix :
+Subtitles render dynamically with word-by-word karaoke synchronization:
 
-- **Changer la position verticale :**
-  - En bas (recommandé pour TikTok, au-dessus de la légende) : `--sub-pos bottom` ou `--sub-y 0.68`
-  - Au milieu (style documentaire) : `--sub-pos center` ou `--sub-y 0.50`
-  - En haut : `--sub-pos top` ou `--sub-y 0.22`
-- **Changer la couleur du mot prononcé (effet karaoké) :**
-  - Jaune éclatant : `--sub-accent "#FFE600"`
-  - Vert fluo : `--sub-accent "#00FF66"`
-  - Cyan électrique : `--sub-accent "#00E5FF"`
-  - Désactiver le surlignage (texte blanc uniforme) : `--sub-accent none`
-- **Changer la taille :** `--sub-size 65` (discret) à `--sub-size 90` (très gros, style viral)
-- **Désactiver complètement les sous-titres :** `--no-subtitles`
-
----
-
-### Effets de caméra & Zooms Ken Burns
-
-Pour rendre les images vivantes et dynamiques, la caméra bouge en continu :
-
-- **`--zoom-mode alternate` (Par défaut) :** Alterne à chaque plan. Le plan 1 zoome lentement vers l'avant, le plan 2 dézoome lentement vers l'arrière, le plan 3 zoome vers l'avant. Très fluide et captivant.
-- **`--zoom-mode in` :** Tous les plans zooment vers l'avant.
-- **`--zoom-mode out` :** Tous les plans commencent avec un plan plus serré et s'élargissent.
-- **`--no-zoom` :** Images complètement statiques.
-- **`--zoom-intensity 0.12` :** Augmente l'amplitude du zoom (par défaut : `0.08`).
-- **`--no-shake` :** Désactive les secousses de caméra sur les moments de surprise ou d'impact.
+- **Vertical position:**
+  - Bottom (recommended for TikTok/Reels, clears UI captions): `--sub-pos bottom` or `--sub-y 0.68`
+  - Center (documentary style): `--sub-pos center` or `--sub-y 0.50`
+  - Top: `--sub-pos top` or `--sub-y 0.22`
+- **Spoken word highlight color:**
+  - Vibrant yellow: `--sub-accent "#FFE600"`
+  - Neon green: `--sub-accent "#00FF66"`
+  - Electric cyan: `--sub-accent "#00E5FF"`
+  - Disable highlighting (solid white text): `--sub-accent none`
+- **Font size:** `--sub-size 65` (compact) to `--sub-size 90` (large viral impact)
+- **Disable subtitles entirely:** `--no-subtitles`
 
 ---
 
-### Bruitages sonores (SFX)
+### Camera Effects & Ken Burns Zooms
 
-Des effets sonores courts et discrets sont insérés automatiquement au moment des transitions ou des révélations pour booster le dynamisme :
-- `whoosh` : transition rapide d'air.
-- `pop` : apparition d'un mot ou d'un objet.
-- `tic` : bruitage d'horloge ou de compte à rebours.
-- `rire`, `boing`, `alarme`...
-Les sons se trouvent dans `assets/sfx/`. Vous pouvez ajouter vos propres fichiers `.wav` ou `.mp3` dans ce dossier.
+Continuous dynamic camera motion keeps static generated images lively:
+
+- **`--zoom-mode alternate` (Default):** Alternates direction on each cut (scene 1 zooms in, scene 2 zooms out, scene 3 zooms in). Smooth and engaging.
+- **`--zoom-mode in`:** All cuts zoom forward.
+- **`--zoom-mode out`:** All cuts start tighter and pull back.
+- **`--no-zoom`:** Completely static images.
+- **`--zoom-intensity 0.12`:** Increases zoom scale factor (default: `0.08`).
+- **`--no-shake`:** Disables camera shake impacts on surprise or climax moments.
 
 ---
 
-### Voix IA Gemini & Direction d'acteur
+### Sound Effects (SFX)
 
-Le modèle Gemini TTS propose 5 timbres vocaux de base :
+Subtle sound effects are inserted at transitions or keyword reveals:
+- `whoosh`: Quick air swish on scene transitions.
+- `pop`: Appearance of icons or focal items.
+- `tic`: Countdown or clock ticking.
+- Custom effects: Add any `.mp3` or `.wav` into `assets/sfx/`.
 
-| Voix | Registre | Style vocal | Idéal pour |
+---
+
+### Gemini AI Voices & Actor Direction
+
+Gemini TTS offers 5 voice timbres:
+
+| Voice | Register | Tone & Delivery | Best For |
 | :--- | :--- | :--- | :--- |
-| **Puck** | Homme (Ténor) | Énergique, moderne, punchy, diction nette | Cartoons, explications rapides, TikTok |
-| **Charon** | Homme (Basse) | Profond, grave, solennel, captivant | Documentaires, histoire, mystère, horreur |
-| **Kore** | Femme (Alto) | Chaleureuse, posée, bienveillante, claire | Santé, sciences, vulgarisation, récits |
-| **Fenrir** | Homme (Baryton)| Intense, rauque, autoritaire, puissant | Action, fitness, bandes-annonces |
-| **Aoede** | Femme (Soprano)| Douce, fluide, mélodieuse, sophistiquée | Culture, littérature, lifestyle |
+| **Puck** | Male (Tenor) | Energetic, punchy, crisp diction | Cartoons, fast explainers, TikTok |
+| **Charon** | Male (Bass) | Deep, solemn, resonant, gripping | Documentaries, history, horror |
+| **Kore** | Female (Alto) | Warm, composed, reassuring, clear | Science, healthcare, narratives |
+| **Fenrir** | Male (Baritone)| Gritty, commanding, intense, powerful | Action, fitness, trailers |
+| **Aoede** | Female (Soprano)| Elegant, gentle, melodic, refined | Lifestyle, culture, education |
 
-Vous pouvez choisir la voix avec :
+Select a voice with:
 ```bash
-python main.py videos/mon_projet --voice-name Charon
+python main.py videos/my_video --voice-name Charon
 ```
 
 ---
 
-### Utiliser sa propre voix ou un audio externe
+### Using Your Own Voice or External Audio
 
-Si vous enregistrez votre propre voix au micro ou si vous utilisez un autre outil (ElevenLabs, etc.) :
-1. Déposez simplement votre fichier audio dans le dossier de la vidéo sous le nom **`voix.mp3`** (ou `.wav`).
-2. Lancez le programme :
+If you record your own voiceover or use an external service (ElevenLabs, etc.):
+1. Place your audio file in the project folder named **`voix.mp3`** (or `.wav`).
+2. Run the pipeline with:
    ```bash
-   python main.py videos/mon_projet --skip-voice
+   python main.py videos/my_video --skip-voice
    ```
-3. Faster-Whisper détectera automatiquement votre fichier, extraira chaque mot à la milliseconde près et calera la vidéo dessus !
+3. Faster-Whisper automatically ingests the file, extracts timestamps, and aligns the entire video.
 
 ---
 
-### Profils de chaîne multi-comptes (`accounts/`)
+### Multi-Channel Account Profiles (`accounts/`)
 
-Si vous gérez plusieurs comptes TikTok ou YouTube avec des identités visuelles différentes, regroupez vos réglages dans `accounts/<nom_du_compte>/` :
+If you run multiple themed channels, organize presets under `accounts/<profile_name>/`:
 
-- `accounts/cartoon/` : style stickman, voix Puck, sous-titres jaunes.
-- `accounts/documentary/` : style réaliste, voix Charon, zoom lent, sous-titres blancs.
-- `accounts/medical/` : style 3D épuré, voix Kore, accent turquoise.
+- `accounts/cartoon/`: Stickman visual style, Puck voice, yellow subtitles.
+- `accounts/documentary/`: Historical style, Charon voice, slow zoom, white subtitles.
+- `accounts/medical/`: 3D minimalist style, Kore voice, turquoise highlight.
 
-Pour appliquer un profil à votre vidéo :
+Apply a profile to any video:
 ```bash
-python main.py videos/mon_projet --account cartoon
+python main.py videos/my_video --account cartoon
 ```
 
 ---
 
-## 9. Recettes & Styles Prêts à l'Emploi
+## 9. Ready-to-Use Recipes & Styles
 
-#### Style Alex Hormozi (Gros sous-titres jaunes dynamiques)
+#### Alex Hormozi Style (Large bold yellow dynamic subtitles)
 ```bash
-python main.py videos/mon_projet \
+python main.py videos/my_video \
   --sub-pos bottom \
   --sub-size 90 \
   --sub-accent "#FFE600" \
@@ -555,9 +552,9 @@ python main.py videos/mon_projet \
   --zoom-intensity 0.10
 ```
 
-#### Style Documentaire Minimaliste (Sous-titres blancs sobres)
+#### Minimalist Documentary (Subtle white subtitles, slow zoom)
 ```bash
-python main.py videos/mon_projet \
+python main.py videos/my_video \
   --voice-name Charon \
   --sub-pos center \
   --sub-accent none \
@@ -566,9 +563,9 @@ python main.py videos/mon_projet \
   --zoom-intensity 0.04
 ```
 
-#### Style Scientifique & Médical
+#### Science & Medical Explainer
 ```bash
-python main.py videos/mon_projet \
+python main.py videos/my_video \
   --voice-name Kore \
   --sub-pos center \
   --sub-accent "#00FFC2" \
@@ -576,9 +573,9 @@ python main.py videos/mon_projet \
   --zoom-mode in
 ```
 
-#### Re-générer seulement la vidéo avec de nouveaux sous-titres (sans refaire les images)
+#### Re-render video with new subtitle settings (without regenerating images)
 ```bash
-python main.py videos/mon_projet \
+python main.py videos/my_video \
   --render-only \
   --sub-accent "#FF3366" \
   --sub-y 0.65
@@ -586,7 +583,7 @@ python main.py videos/mon_projet \
 
 ---
 
-## 10. Référence Complète des Commandes CLI
+## 10. Complete CLI Command Reference
 
 ```text
 usage: main.py [-h] [--mode {auto,manual}] [--account ACCOUNT] [--skip-voice]
@@ -601,125 +598,124 @@ usage: main.py [-h] [--mode {auto,manual}] [--account ACCOUNT] [--skip-voice]
                video_dir
 ```
 
-| Option | Valeurs possibles | Description |
+| Option | Valid Values | Description |
 | :--- | :--- | :--- |
-| `video_dir` | Chemin de dossier | **(Requis)** Dossier contenant `script.txt` (ex: `videos/projet1`). |
-| `--mode` | `auto`, `manual` | Mode automatique (Gemini découpe) ou manuel (fichiers JSON pré-fournis). |
-| `--account` | Nom de dossier dans `accounts/` | Applique les styles d'une chaîne spécifique (`cartoon`, `documentary`, etc.). |
-| `--style` | Texte entre guillemets | Définit la consigne de style artistique pour les images. |
-| `--voice-name` | `Puck`, `Charon`, `Kore`, `Fenrir`, `Aoede` | Choix du timbre de la voix IA. |
-| `--voice-style`| Texte descriptif | Direction d'acteur pour la voix (intonation, rythme, émotion). |
-| `--skip-voice` | Drapeau (sans valeur) | Ignore la synthèse vocale si `voix.mp3` existe déjà. |
-| `--skip-flow`  | Drapeau (sans valeur) | Ignore la génération d'images Flow (utilise les images déjà présentes). |
-| `--render-only`| Drapeau (sans valeur) | Reconstruit directement la vidéo finale sans rien regénérer d'autre. |
-| `--web-only`   | Drapeau (sans valeur) | Lance uniquement la page web de sélection d'images `http://localhost:8765/`. |
-| `--fps`        | `30`, `60` | Fréquence d'images de la vidéo (par défaut : 30 fps, 60 fps recommandé pour une fluidité maximale). |
-| `--sub-pos`    | `top`, `center`, `bottom` | Position prédéfinie des sous-titres à l'écran. |
-| `--sub-y`      | Nombre entre `0.0` et `1.0` | Position verticale sur-mesure (`0.68` = idéal pour TikTok). |
-| `--sub-size`   | Nombre (ex: `70`) | Taille de la police des sous-titres. |
-| `--sub-accent` | Code hex ou `none` | Couleur du mot prononcé (ex: `"#FFE600"` pour jaune, `none` pour monochrome). |
-| `--sub-color`  | Code hex | Couleur des autres mots du sous-titre (ex: `"#FFFFFF"`). |
-| `--no-subtitles`| Drapeau | Supprime totalement les sous-titres de la vidéo. |
-| `--zoom-mode`  | `alternate`, `in`, `out`, `none` | Type d'animation de caméra Ken Burns. |
-| `--zoom-intensity` | Nombre (ex: `0.08`) | Amplitude du zoom de caméra. |
-| `--no-zoom`    | Drapeau | Désactive tout mouvement de caméra (images statiques). |
-| `--no-shake`   | Drapeau | Désactive les secousses de caméra. |
-| `--no-keywords`| Drapeau | Désactive les bandeaux de mots-clés en majuscules en haut de l'écran. |
+| `video_dir` | Directory path | **(Required)** Folder containing `script.txt` (e.g. `videos/demo`). |
+| `--mode` | `auto`, `manual` | Pipeline mode: automatic (Gemini plans cuts) or manual (pre-existing JSON files). |
+| `--account` | Subfolder in `accounts/` | Applies style preset from channel profile (`cartoon`, `documentary`, etc.). |
+| `--style` | Quoted string | Specifies visual art direction prompt for images. |
+| `--voice-name` | `Puck`, `Charon`, `Kore`, `Fenrir`, `Aoede` | Voice timbre selection. |
+| `--voice-style`| Descriptive string | Actor direction prompt (cadence, emotion, intonation). |
+| `--skip-voice` | Flag | Skips TTS synthesis if `voix.mp3` already exists. |
+| `--skip-flow`  | Flag | Skips Flow image generation (uses existing candidates). |
+| `--render-only`| Flag | Re-renders final video from existing assets without re-running earlier steps. |
+| `--web-only`   | Flag | Launches only the web selection interface (`http://localhost:8765/`). |
+| `--fps`        | `30`, `60` | Output frame rate (default: 30 fps; 60 fps recommended for maximum smoothness). |
+| `--sub-pos`    | `top`, `center`, `bottom` | Preset vertical position for subtitles. |
+| `--sub-y`      | Float between `0.0` and `1.0` | Custom vertical position from top (`0.68` = ideal for TikTok). |
+| `--sub-size`   | Integer (e.g. `70`) | Subtitle font size. |
+| `--sub-accent` | Hex code or `none` | Active spoken word highlight color (e.g. `"#FFE600"`, `none` for monochrome). |
+| `--sub-color`  | Hex code | Inactive subtitle text color (e.g. `"#FFFFFF"`). |
+| `--no-subtitles`| Flag | Disables subtitles completely. |
+| `--zoom-mode`  | `alternate`, `in`, `out`, `none` | Ken Burns camera zoom direction. |
+| `--zoom-intensity` | Float (e.g. `0.08`) | Zoom scale amplitude. |
+| `--no-zoom`    | Flag | Disables camera zoom (static frames). |
+| `--no-shake`   | Flag | Disables camera shake effects. |
+| `--no-keywords`| Flag | Disables top uppercase keyword banners. |
 
 ---
 
-## 11. FAQ & Résolution des Problèmes (Dépannage)
+## 11. FAQ & Troubleshooting
 
-#### Q1 : Le terminal affiche `'ffmpeg' is not recognized` ou `ffmpeg: command not found`
-> **Cause :** FFmpeg n'est pas installé ou n'a pas été ajouté à la variable d'environnement PATH.  
-> **Solution :**  
-> - Sur Windows : Ouvrez un terminal administrateur et tapez `winget install Gyan.FFmpeg`, puis fermez et rouvrez votre terminal.  
-> - Sur Mac : Tapez `brew install ffmpeg`.  
-> - Vérifiez en tapant `ffmpeg -version`.
+#### Q1: Terminal displays `'ffmpeg' is not recognized` or `ffmpeg: command not found`
+> **Cause:** FFmpeg is not installed or not present in your system PATH.  
+> **Solution:**  
+> - On Windows: Open an administrator terminal and run `winget install Gyan.FFmpeg`, then restart your terminal.  
+> - On macOS: Run `brew install ffmpeg`.  
+> - Verify by typing `ffmpeg -version`.
 
-#### Q2 : Le terminal affiche `GEMINI_API_KEY environment variable is not defined`
-> **Cause :** Le fichier `.env` est manquant ou ne contient pas votre clé.  
-> **Solution :** Dupliquez le fichier `.env.example`, renommez la copie en `.env`, et écrivez dedans : `GEMINI_API_KEY="votre_cle"`.
+#### Q2: Terminal displays `GEMINI_API_KEY environment variable is not defined`
+> **Cause:** The `.env` file is missing or lacks a valid key.  
+> **Solution:** Duplicate `.env.example`, rename it to `.env`, and insert: `GEMINI_API_KEY="your_actual_key"`.
 
-#### Q3 : Le terminal affiche `Cannot connect to host 127.0.0.1:9222` ou erreur CDP
-> **Cause :** Google Chrome n'a pas été lancé avec le port de débogage 9222.  
-> **Solution :** Lancez `./flow/start_chrome.sh` (Mac/Linux) ou `flow\start_chrome.bat` (Windows). Ne fermez pas la fenêtre Chrome qui s'ouvre.
+#### Q3: Terminal displays `Cannot connect to host 127.0.0.1:9222` or CDP error
+> **Cause:** Google Chrome was not launched with remote debugging port 9222.  
+> **Solution:** Run `./flow/start_chrome.sh` (macOS/Linux) or `flow\start_chrome.bat` (Windows). Keep the opened Chrome window active.
 
-#### Q4 : Google Flow affiche un Captcha ou demande de confirmer une action
-> **Cause :** Google vérifie périodiquement que vous êtes bien un humain.  
-> **Solution :** Cliquez simplement sur la fenêtre Chrome ouverte, résolvez le Captcha manuellement à la souris, puis relancez votre commande dans le terminal.
+#### Q4: Google Flow shows a CAPTCHA or prompts for confirmation
+> **Cause:** Google occasionally requests human verification.  
+> **Solution:** Switch to the Chrome window, solve the CAPTCHA manually, then resume your terminal command.
 
-#### Q5 : Comment changer la police d'écriture des sous-titres ?
-> **Solution :** Déposez votre fichier de police (ex: `MaPolice.ttf` ou `.otf`) dans le dossier `assets/fonts/` (ou `accounts/<compte>/fonts/`), puis indiquez `"font": "MaPolice.ttf"` dans votre `config.json`.
+#### Q5: How do I change the subtitle font?
+> **Solution:** Drop your font file (`.ttf` or `.otf`) into `assets/fonts/` (or `accounts/<account>/fonts/`), then set `"font": "MyFont.ttf"` in your `config.json`.
 
-#### Q6 : Les images générées ne correspondent pas à mon projet
-> **Cause :** Soit la description dans `style.txt` est trop vague, soit le projet sélectionné dans Google Flow n'est pas le bon.  
-> **Solution :** Dans la fenêtre Chrome ouverte sur Flow, assurez-vous d'être dans le bon projet. Précisez bien votre style artistique dans `style.txt`.
+#### Q6: Generated images don't match my target theme
+> **Cause:** Either the prompt in `style.txt` is too ambiguous, or Chrome is opened to an incorrect Flow project.  
+> **Solution:** Verify the active Flow project in Chrome and refine your visual description in `style.txt`.
 
-#### Q7 : Comment exporter en 60 images par seconde (60 fps) ?
-> **Solution :** Ajoutez simplement `--fps 60` à votre commande :
+#### Q7: How do I export in 60 frames per second (60 fps)?
+> **Solution:** Add `--fps 60` to your CLI command:
 > ```bash
-> python main.py videos/mon_projet --fps 60
+> python main.py videos/my_video --fps 60
 > ```
 
 ---
 
-## 12. Structure du Dépôt
+## 12. Repository Structure
 
 ```text
 script-to-short/
-├── .env.example              # Modèle de configuration avec explications
-├── .gitignore                # Fichiers ignorés par Git (clés privées, caches)
-├── LICENSE                   # Licence MIT
-├── README.md                 # Cette documentation complète
-├── requirements.txt          # Liste des bibliothèques Python nécessaires
-├── main.py                   # Point d'entrée principal en ligne de commande
+├── .env.example              # Environment variables template with explanations
+├── .gitignore                # Git ignore rules (secrets, caches, heavy renders)
+├── LICENSE                   # MIT License
+├── README.md                 # Complete project documentation
+├── requirements.txt          # Python dependencies
+├── main.py                   # Unified CLI entry point
 │
-├── core/                     # Moteur de production
-│   ├── voice.py              # Synthèse vocale Gemini TTS + normalisation -14 LUFS
-│   ├── transcribe.py         # Découpage mot par mot avec Faster-Whisper
-│   ├── scene_planner.py      # Découpage dynamique des scènes et prompts IA
-│   ├── timeline.py           # Calage précis de la timeline et sous-titres
-│   ├── renderer.py           # Moteur de rendu vidéo 60 fps (Pillow + FFmpeg)
-│   ├── account_manager.py    # Gestionnaire des profils de compte et des polices
-│   └── utils.py              # Outils utilitaires
+├── core/                     # Production engine
+│   ├── voice.py              # Gemini TTS synthesis + broadcast -14 LUFS normalization
+│   ├── transcribe.py         # Word-level timestamping via Faster-Whisper
+│   ├── scene_planner.py      # LLM scene breakdown & prompt engineering
+│   ├── timeline.py           # Audio-subtitle alignment & cut synchronizer
+│   ├── renderer.py           # 60 fps video rendering engine (Pillow + FFmpeg)
+│   ├── account_manager.py    # Channel profile presets & font resolution
+│   └── utils.py              # Path and logging helpers
 │
-├── flow/                     # Automatisation de Google Flow
-│   ├── flow_auto.py          # Pilote Playwright pour Google Flow
-│   ├── flow_fast.py          # Gestionnaire de file d'attente et téléchargement des images
-│   ├── choisir_web.py        # Interface web de sélection (port 8765)
-│   ├── build_prompts.py      # Formateur de prompts visuels 9:16
-│   ├── start_chrome.sh       # Lanceur Chrome débogage (macOS / Linux)
-│   └── start_chrome.bat      # Lanceur Chrome débogage (Windows)
+├── flow/                     # Google Flow browser automation
+│   ├── flow_auto.py          # Playwright CDP driver for Google Flow
+│   ├── flow_fast.py          # Parallel queue worker & image downloader
+│   ├── choisir_web.py        # Local web selection interface (port 8765)
+│   ├── build_prompts.py      # 9:16 visual prompt builder
+│   ├── start_chrome.sh       # Chrome debug launcher (macOS / Linux)
+│   └── start_chrome.bat      # Chrome debug launcher (Windows)
 │
-├── accounts/                 # Profils de chaînes pré-configurés
-│   ├── _template/            # Modèle pour créer une nouvelle chaîne
-│   ├── cartoon/              # Profil stickman / cartoon
-│   ├── documentary/          # Profil histoire / documentaire
-│   ├── medical/              # Profil vulgarisation médicale & biologique
-│   └── horror/               # Profil horreur / énigmes
+├── accounts/                 # Pre-configured channel profile presets
+│   ├── _template/            # Starter template for new channels
+│   ├── cartoon/              # 2D stickman / cartoon aesthetic
+│   ├── documentary/          # Cinematic history / documentary aesthetic
+│   ├── medical/              # Clean 3D biology & science aesthetic
+│   └── horror/               # Atmospheric horror / mystery aesthetic
 │
 ├── assets/
-│   ├── fonts/                # Polices de sous-titres
-│   └── sfx/                  # Bruitages sonores (whoosh, pop, tic, rire...)
+│   ├── fonts/                # Subtitle typeface storage
+│   └── sfx/                  # Royalty-free sound effects (whoosh, pop, tic...)
 │
 └── videos/
-    └── demo/                 # Projet de démonstration prêt à tester
+    └── demo/                 # Ready-to-test demonstration project
 ```
 
 ---
 
-## 13. Licence
+## 13. License
 
-Ce projet est distribué sous licence libre **MIT**. Vous êtes libre de l'utiliser, le modifier et l'adapter pour vos projets personnels ou commerciaux. Consultez le fichier [LICENSE](LICENSE) pour plus de détails.
+Distributed under the **MIT License**. Free for personal and commercial use. See [LICENSE](LICENSE) for details.
 
 ---
 
-## 14. Avertissement & Usage Légal (Disclaimer)
+## 14. Disclaimer & Legal Notice
 
 > [!NOTE]
-> ### ⚖️ Usage légal & éthique
-> Ce projet est développé à des fins d'expérimentation personnelle, d'apprentissage et de recherche technique (Proof of Concept). 
-> L'automatisation du navigateur s'appuie sur la session locale de l'utilisateur via le protocole Chrome DevTools (CDP) afin de pallier l'absence d'une API publique REST pour Google Labs.
-> Les utilisateurs sont tenus de respecter les Conditions d'Utilisation des plateformes tierces. L'intégration d'API officielles (telles que Vertex AI / Imagen 3) reste la voie privilégiée dès leur mise à disposition grand public.
-
+> ### ⚖️ Ethical & Legal Usage
+> This project is developed for personal research, educational experimentation, and technical demonstration (Proof of Concept).
+> Browser automation leverages the user's local authenticated session via Chrome DevTools Protocol (CDP) to bridge the absence of a public REST API on Google Labs.
+> Users are expected to comply with the Terms of Service of third-party platforms. Official APIs (such as Vertex AI / Imagen 3) remain the recommended approach upon public availability.
