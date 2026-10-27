@@ -3,7 +3,7 @@ from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 PORT = 8765
 
-# Détermination des chemins
+# Resolve paths
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
 PIPELINE_DIR = os.path.join(PROJECT_DIR, "pipeline")
@@ -19,7 +19,7 @@ cfg = json.load(open(cfg_path)) if os.path.exists(cfg_path) else {}
 
 IMAGES_PER_PROMPT = int(cfg.get("images_per_prompt", 3))
 
-# Répertoire vidéo cible (ex: videos/stickman2)
+# Target video directory (e.g. videos/demo)
 VIDEO_DIR = cfg.get("video_dir", "")
 if VIDEO_DIR and not os.path.isabs(VIDEO_DIR):
     VIDEO_DIR = os.path.normpath(os.path.join(SCRIPT_DIR, VIDEO_DIR))
@@ -34,7 +34,7 @@ def get_out_dir():
         return os.path.join(VIDEO_DIR, "images_candidates")
     return os.path.join(SCRIPT_DIR, out_cfg or "images_candidates")
 
-# État global du rendu vidéo en arrière-plan
+# Global background video render state
 render_state = {
     "status": "idle",   # idle, running, done, error
     "log": "",
@@ -71,7 +71,8 @@ section[data-choice="3"] .img[data-n="3"],
 section[data-choice="4"] .img[data-n="4"]{outline-color:#22c55e;transform:scale(1.01)}
 section[data-choice="1"] .img-wrap:has(.img[data-n="1"]) .badge,
 section[data-choice="2"] .img-wrap:has(.img[data-n="2"]) .badge,
-section[data-choice="3"] .img-wrap:has(.img[data-n="3"]) .badge{background:#22c55e;color:#052e16}
+section[data-choice="3"] .img-wrap:has(.img[data-n="3"]) .badge,
+section[data-choice="4"] .img-wrap:has(.img[data-n="4"]) .badge{background:#22c55e;color:#052e16}
 section[data-choice="x"]{background:#2a1215}
 .redo{background:#27272a;color:#d4d4d8}
 .redo:hover{background:#3f3f46}
@@ -82,7 +83,7 @@ summary{cursor:pointer;color:#a1a1aa}
 <header>
   <b>Dossier : __OUT__</b>
   <span id="stat"></span>
-  <span style="font-size:13px;color:#71717a;margin-left:auto">Touches 1, 2, 3 ou clic · X pour refaire</span>
+  <span style="font-size:13px;color:#71717a;margin-left:auto">Touches 1, 2, 3, 4 ou clic · X pour refaire</span>
   <button id="go" onclick="finish()">✅ Valider et lancer le montage</button>
   <button id="copy">📋 Copier la commande</button>
   <button id="open_vid" onclick="openVideo()">▶️ Ouvrir la vidéo finale</button>
@@ -242,12 +243,21 @@ def load_choix():
             return json.load(open(legacy_v))
     return {}
 
+def get_candidate_indices(out_dir, i):
+    prefix = f"{i}_"
+    found = []
+    if os.path.isdir(out_dir):
+        for f in os.listdir(out_dir):
+            if f.startswith(prefix) and (f.endswith(".jpg") or f.endswith(".png")):
+                part = f[len(prefix):].split(".")[0]
+                if part.isdigit():
+                    found.append(int(part))
+    return sorted(found)
+
 def default_choice(i):
     out_dir = get_out_dir()
-    for n in range(1, IMAGES_PER_PROMPT + 1):
-        if os.path.exists(os.path.join(out_dir, f"{i}_{n}.jpg")):
-            return str(n)
-    return "x"
+    cands = get_candidate_indices(out_dir, i)
+    return str(cands[0]) if cands else "x"
 
 def img_tag(i, n):
     out_dir = get_out_dir()
@@ -267,7 +277,7 @@ def page():
         c = choix.get(str(i)) or default_choice(i)
         a = html.escape(p.get("anchor", ""))
         s = html.escape(p.get("scene", ""))
-        existing_n = [n for n in range(1, IMAGES_PER_PROMPT + 1) if os.path.exists(os.path.join(out_dir, f"{i}_{n}.jpg"))]
+        existing_n = get_candidate_indices(out_dir, i)
         if existing_n:
             imgs_html = "".join(img_tag(i, n) for n in existing_n)
         else:
@@ -292,7 +302,7 @@ def render_worker(video_dir):
         cmd1 = [sys.executable, t_script, video_dir]
         subprocess.run(cmd1, check=True)
 
-        # 2. Rendu vidéo
+        # 2. Video rendering
         render_state["log"] = "Démarrage du moteur de rendu vidéo..."
         cmd2 = [sys.executable, r_script, video_dir]
         proc = subprocess.Popen(cmd2, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
@@ -358,9 +368,9 @@ def finish():
     render_started = False
     if refaire:
         ids = " ".join(str(i) for i in refaire)
-        rm_files = [os.path.join(out_dir, f"{i}_{n}.jpg") for i in refaire for n in range(1, IMAGES_PER_PROMPT + 1)]
-        rm = " ".join(f'"{f}"' for f in rm_files)
-        cmd = f"rm -f {rm} && python flow_fast.py {ids}"
+        rm_files = [os.path.join(out_dir, f"{i}_{n}.jpg") for i in refaire for n in (get_candidate_indices(out_dir, i) or [1, 2, 3, 4])]
+        rm = " ".join(f'"{f}"' for f in rm_files if os.path.exists(f))
+        cmd = f"rm -f {rm} && python flow_fast.py {ids}" if rm else f"python flow_fast.py {ids}"
         msg += f"\n❌ À refaire : {ids}\n{cmd}"
     else:
         if VIDEO_DIR:

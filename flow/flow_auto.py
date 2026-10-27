@@ -67,15 +67,71 @@ def log(msg: str):
 
 
 def flow_page(browser):
+    candidates = []
     for ctx in browser.contexts:
         for p in ctx.pages:
             if "flow" in p.url and "google" in p.url:
+                candidates.append(p)
+    if not candidates:
+        raise RuntimeError("No Google Flow tab found. Open your Flow project in Chrome (port 9222) and retry.")
+
+    for p in reversed(candidates):
+        try:
+            if "/project/" in p.url and p.evaluate("() => document.visibilityState") == "visible":
                 return p
-    raise RuntimeError("No Google Flow tab found. Open your Flow project in Chrome (port 9222) and retry.")
+        except Exception:
+            pass
+
+    for p in reversed(candidates):
+        try:
+            if p.evaluate("() => document.visibilityState") == "visible":
+                return p
+        except Exception:
+            pass
+
+    for p in reversed(candidates):
+        if "/project/" in p.url:
+            return p
+
+    return candidates[-1]
 
 
 def ref_pattern(name: str):
     return re.compile(r"(^|\s)" + re.escape(name) + r"(\.(jpe?g|png|webp|gif|heic|heif))?(?=\s|Image|$)", re.I)
+
+
+def find_ref_file(name: str, target_dir: str = None) -> Path:
+    exts = (".jpg", ".png", ".webp", ".jpeg", ".gif")
+    candidates = []
+
+    if target_dir:
+        td = Path(target_dir).resolve()
+        for ext in exts:
+            candidates.append(td / "refs" / f"{name}{ext}")
+            candidates.append(td / f"{name}{ext}")
+
+    flow_dir = Path(__file__).resolve().parent
+    for ext in exts:
+        candidates.append(flow_dir / "refs" / f"{name}{ext}")
+
+    repo_root = flow_dir.parent
+    accounts_dir = repo_root / "accounts"
+    if accounts_dir.is_dir():
+        for acc in accounts_dir.iterdir():
+            if acc.is_dir():
+                for ext in exts:
+                    candidates.append(acc / "refs" / f"{name}{ext}")
+
+    flow_auto_refs = repo_root.parent / "flow-auto" / "refs"
+    if flow_auto_refs.is_dir():
+        for ext in exts:
+            candidates.append(flow_auto_refs / f"{name}{ext}")
+
+    for cand in candidates:
+        if cand.is_file():
+            return cand.resolve()
+
+    return None
 
 
 def picker_open(page):
@@ -91,14 +147,21 @@ def open_picker(page):
 
 
 def search_ref(page, name: str):
-    page.click(S["refs_search"])
-    page.fill(S["refs_search"], "")
-    page.fill(S["refs_search"], name)
-    page.wait_for_timeout(1000)
-    opts = page.locator(S["ref_option"]).filter(has_text=ref_pattern(name))
+    open_picker(page)
+    s = page.locator(S["refs_search"])
+    s.click()
+    s.fill("")
+    page.wait_for_timeout(200)
+    s.fill(name)
+    page.wait_for_timeout(600)
+
+    pat = ref_pattern(name)
+    opts = page.locator(S["ref_option"]).filter(has_text=pat)
     if opts.count() == 0:
-        page.wait_for_timeout(1000)
-        opts = page.locator(S["ref_option"]).filter(has_text=ref_pattern(name))
+        opts = page.locator(S["ref_option"]).filter(has_text=re.compile(rf"\b{re.escape(name)}\b", re.I))
+    if opts.count() == 0:
+        page.wait_for_timeout(600)
+        opts = page.locator(S["ref_option"]).filter(has_text=pat)
     return opts
 
 
@@ -121,33 +184,74 @@ def clear_chips(page):
     raise RuntimeError("Failed to clear prompt reference chips.")
 
 
-def missing_refs(page, names: list):
+def missing_refs(page, names: list, target_dir: str = None) -> list:
     clear_chips(page)
     open_picker(page)
-    missing = [n for n in names if search_ref(page, n).count() == 0]
-    if missing:
-        to_upload = []
-        for n in missing:
-            for ext in (".jpg", ".png", ".webp"):
-                candidate = Path(__file__).parent / "refs" / f"{n}{ext}"
-                if candidate.exists():
-                    to_upload.append(str(candidate))
-                    break
-        if to_upload:
-            log(f"Auto-importing missing reference images: {', '.join(Path(p).name for p in to_upload)}")
-            upload_btn = page.locator("button:has-text(\"Importer\")")
-            if upload_btn.count():
-                try:
-                    with page.expect_file_chooser(timeout=5000) as fc_info:
-                        upload_btn.first.click()
-                    fc_info.value.set_files(to_upload)
-                    page.wait_for_timeout(4000)
-                    missing = [n for n in names if search_ref(page, n).count() == 0]
-                except Exception as e:
-                    log(f"Warning: Reference import error: {e}")
+
+    missing = []
+    for n in names:
+        opts = search_ref(page, n)
+        if opts.count() == 0:
+            missing.append(n)
+
+    if not missing:
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(400)
+        return []
+
+    to_upload = []
+    for n in missing:
+        fpath = find_ref_file(n, target_dir)
+        if fpath:
+            to_upload.append(str(fpath))
+        else:
+            log(f"Warning: Reference file for '{n}' not found on disk.")
+
+    if to_upload:
+        log(f"Auto-importing missing reference image(s): {', '.join(Path(p).name for p in to_upload)}")
+        s_inp = page.locator(S["refs_search"])
+        if s_inp.count() and s_inp.first.is_visible():
+            s_inp.click()
+            s_inp.fill("")
+            page.wait_for_timeout(300)
+
+        upload_btn = page.locator("button:has-text(\"Importer\")")
+        if upload_btn.count() and upload_btn.first.is_visible():
+            try:
+                with page.expect_file_chooser(timeout=8000) as fc_info:
+                    upload_btn.first.click()
+                fc_info.value.set_files(to_upload)
+
+                page.wait_for_timeout(1500)
+                t0 = time.time()
+                while time.time() - t0 < 45:
+                    spinners = page.locator("mat-spinner, .cdk-visually-hidden:has-text(\"Importation en cours\")")
+                    if spinners.count() == 0:
+                        page.wait_for_timeout(1000)
+                        if spinners.count() == 0:
+                            break
+                    page.wait_for_timeout(500)
+            except Exception as e:
+                log(f"Warning: Reference import error: {e}")
+        else:
+            log("Warning: 'Importer' button not found or not visible.")
+
+    still_missing = []
+    for n in names:
+        opts = search_ref(page, n)
+        if opts.count() == 0:
+            page.wait_for_timeout(1500)
+            opts = search_ref(page, n)
+            if opts.count() == 0:
+                still_missing.append(n)
+            else:
+                log(f"Reference '{n}' verified and ready.")
+        else:
+            log(f"Reference '{n}' verified and ready.")
+
     page.keyboard.press("Escape")
-    page.wait_for_timeout(500)
-    return missing
+    page.wait_for_timeout(400)
+    return still_missing
 
 
 def type_prompt(page, text: str):
@@ -169,18 +273,22 @@ def type_prompt(page, text: str):
         page.wait_for_timeout(300)
 
 
-def attach_refs(page, refs: list):
+def attach_refs(page, refs: list, target_dir: str = None):
     chips = page.locator(S["ref_chip"])
     for name in refs:
         before = chips.count()
         open_picker(page)
         opt = search_ref(page, name)
         if opt.count() == 0:
+            missing_refs(page, [name], target_dir)
+            open_picker(page)
+            opt = search_ref(page, name)
+        if opt.count() == 0:
             page.keyboard.press("Escape")
             raise RuntimeError(f"Reference '{name}' not found in project library.")
         opt.first.click()
         page.wait_for_timeout(800)
-        confirm = page.locator(S["add_refs_confirm"]).filter(has_text=re.compile(r"Ajouter \d+ élément"))
+        confirm = page.locator(S["add_refs_confirm"]).filter(has_text=re.compile(r"(Ajouter \d+ élément|au prompt|to prompt)", re.I))
         if confirm.count() and confirm.first.is_visible():
             confirm.first.click()
             page.wait_for_timeout(800)
