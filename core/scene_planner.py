@@ -82,8 +82,25 @@ def plan_scenes(target_dir: str, account_name: str = None, force_mode: str = Non
     voice_path = target_path / "voix.mp3"
     if not voice_path.is_file():
         if not script_path.is_file():
+            anchor_sources = [raw_path, scenes_path, target_path / "prompts.json", target_path / "prompts.jsonl"]
+            src = next((s for s in anchor_sources if s.is_file()), None)
+            if src:
+                try:
+                    if src.name.endswith(".jsonl"):
+                        items = [json.loads(l) for l in src.read_text(encoding="utf-8").splitlines() if l.strip()]
+                    else:
+                        items = json.loads(src.read_text(encoding="utf-8"))
+                    anchors = [it.get("anchor", "").strip() for it in items if it.get("anchor")]
+                    if anchors:
+                        reconstructed = " ".join(anchors)
+                        script_path.write_text(reconstructed, encoding="utf-8")
+                        log_step("PLANNER", f"Derived narration script ({len(anchors)} anchors) directly from {src.name}")
+                except Exception:
+                    pass
+
+        if not script_path.is_file():
             raise FileNotFoundError(
-                f"Missing both audio and narration: provide either voix.mp3 or script.txt in {target_path}"
+                f"Missing both audio and narration: provide either voix.mp3, script.txt, or timeline anchors in {target_path}"
             )
         v_name = acc_cfg.get("voice", {}).get("name", "Puck")
         v_style = acc_cfg.get("voice", {}).get("style")

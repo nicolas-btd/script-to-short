@@ -64,6 +64,25 @@ def build_prompts(target_dir: str, custom_prefixes: dict = None, visual_style: s
             pass
 
     items = []
+    # 1. If prompts.json already exists and contains prompts, return it directly
+    if json_path.is_file():
+        try:
+            existing = json.loads(json_path.read_text(encoding="utf-8"))
+            if existing and any(it.get("prompt") or it.get("scene") for it in existing):
+                if not jsonl_path.is_file():
+                    with open(jsonl_path, "w", encoding="utf-8") as f:
+                        for it in existing:
+                            f.write(json.dumps(it, ensure_ascii=False) + "\n")
+                txt_path = target_path / "prompts.txt"
+                if not txt_path.is_file():
+                    with open(txt_path, "w", encoding="utf-8") as f:
+                        for it in existing:
+                            p_str = it.get("prompt") or it.get("scene") or ""
+                            f.write(f"=== Plan {it.get('id')} ===\n{p_str}\n\n")
+                return str(json_path)
+        except Exception:
+            pass
+
     if jsonl_path.is_file():
         for line in jsonl_path.read_text(encoding="utf-8").splitlines():
             line = line.strip()
@@ -74,19 +93,20 @@ def build_prompts(target_dir: str, custom_prefixes: dict = None, visual_style: s
                     pass
     elif raw_timeline_path.is_file():
         try:
-            items = json.loads(raw_timeline_path.read_text(encoding="utf-8"))
+            raw_items = json.loads(raw_timeline_path.read_text(encoding="utf-8"))
+            if any(it.get("scene") or it.get("prompt") for it in raw_items):
+                items = raw_items
         except Exception:
             pass
-    elif scenes_path.is_file():
+    if not items and scenes_path.is_file():
         try:
             items = json.loads(scenes_path.read_text(encoding="utf-8"))
         except Exception:
             pass
-    elif json_path.is_file():
-        return str(json_path)
-    else:
+
+    if not items:
         raise FileNotFoundError(
-            f"No prompts source found in {target_path} (expected prompts.jsonl, timeline_raw.json, or scenes.json)"
+            f"No prompts source found in {target_path} (expected prompts.json, prompts.jsonl, timeline_raw.json with scenes, or scenes.json)"
         )
 
     records = []
